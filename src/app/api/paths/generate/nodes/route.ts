@@ -20,8 +20,9 @@ export async function POST(req: NextRequest) {
 
     const payload = await verifyAccessToken(auth);
     const user = await prisma.user.findUnique({ where: { id: payload.sub } });
-    if (!user?.deepseekApiKey) {
-      return NextResponse.json({ error: '请先在设置中配置 DeepSeek API Key' }, { status: 400 });
+    const apiKey = user?.deepseekApiKey || process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: '请先在设置中配置 DeepSeek API Key，或设置服务端 DEEPSEEK_API_KEY 环境变量' }, { status: 400 });
     }
 
     const body = BodySchema.parse(await req.json());
@@ -33,10 +34,13 @@ export async function POST(req: NextRequest) {
       `当前要展开的阶段：${body.phase_id} — ${body.phase_title}`,
     ].join('\n');
 
-    const response = await chatWithDeepSeek(user.deepseekApiKey, NODES_PROMPT, userMsg);
+    const response = await chatWithDeepSeek(apiKey, NODES_PROMPT, userMsg);
     const result = extractJSON(response);
 
-    return NextResponse.json(result);
+    // 防御：AI 可能返回裸数组而非 { nodes: [...] }，统一归一化
+    const normalized = Array.isArray(result) ? { nodes: result } : result;
+
+    return NextResponse.json(normalized);
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: '参数错误', details: err.issues }, { status: 422 });

@@ -72,11 +72,24 @@ export default function NewPathPage() {
         throw new Error(data.error || '生成失败');
       }
       const data = await res.json();
+      console.log('[NewPath] API response keys:', Object.keys(data));
+      console.log('[NewPath] data.phases type:', typeof data.phases, Array.isArray(data.phases));
       // DeepSeek 可能返回数字 id，统一转字符串
-      const phases = (data.phases || []).map((p: Record<string, unknown>) => ({
-        ...p,
-        id: String(p.id),
-      }));
+      let phases: Phase[] = [];
+      try {
+        const raw = Array.isArray(data.phases) ? data.phases : [];
+        console.log('[NewPath] raw phases count:', raw.length);
+        phases = raw.map((p: Record<string, unknown>) => ({
+          ...p,
+          id: String(p.id ?? ''),
+        })) as Phase[];
+      } catch (mapErr) {
+        console.error('[NewPath] phases mapping error:', mapErr);
+        setError('数据格式异常，请重试');
+        setLoading(false);
+        return;
+      }
+      console.log('[NewPath] setting phases:', phases.length, 'step: framework');
       setPhases(phases);
       setStep('framework');
     } catch (err) {
@@ -166,7 +179,19 @@ export default function NewPathPage() {
 
       <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         {error && (
-          <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{error}</div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+            <span className="text-red-500 text-lg shrink-0">⚠️</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-red-800">生成失败</p>
+              <p className="text-sm text-red-600 mt-0.5 break-words">{error}</p>
+            </div>
+            <button
+              onClick={() => setError('')}
+              className="text-red-400 hover:text-red-600 text-sm shrink-0"
+            >
+              ✕
+            </button>
+          </div>
         )}
 
         {/* Step 1: Intent */}
@@ -239,8 +264,21 @@ export default function NewPathPage() {
         {/* Step 2: Framework Review */}
         {step === 'framework' && (
           <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded px-3 py-1.5 text-xs text-yellow-700 font-mono">
+              DEBUG: step={step} | phases.length={phases.length} | loading={String(loading)} | error={error ? 'YES' : 'none'}
+            </div>
             <h2 className="text-lg font-semibold">学习框架</h2>
-            <p className="text-sm text-gray-500">点击展开每个阶段的子节点</p>
+            <p className="text-sm text-gray-500">
+              点击展开每个阶段的子节点
+              <span className="ml-2 text-xs text-gray-300">({phases.length} 个阶段, step={step})</span>
+            </p>
+
+            {phases.length === 0 && !loading && (
+              <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                <p className="text-gray-400 text-sm">未生成任何阶段</p>
+                <p className="text-gray-400 text-xs mt-1">请返回上一步重新生成</p>
+              </div>
+            )}
 
             <div className="space-y-3">
               {phases.map((phase) => (

@@ -4,15 +4,26 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth';
 import Link from 'next/link';
 
+interface PathItem {
+  id: string;
+  title: string;
+  domain: string;
+  isPublic: boolean;
+  createdAt: string;
+}
+
 export default function Home() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const [showKeyModal, setShowKeyModal] = useState(false);
+  const [paths, setPaths] = useState<PathItem[]>([]);
+  const [pathsLoading, setPathsLoading] = useState(false);
 
-  // 登录后检查是否有 API Key
+  // 登录后检查是否有 API Key + 加载路径列表
   useEffect(() => {
     if (user) {
       checkApiKey();
+      loadPaths();
     }
   }, [user]);
 
@@ -30,6 +41,24 @@ export default function Home() {
       }
     } catch {
       // ignore
+    }
+  };
+
+  const loadPaths = async () => {
+    setPathsLoading(true);
+    try {
+      const token = useAuthStore.getState().token;
+      const res = await fetch('/api/paths', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPaths(data.paths || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setPathsLoading(false);
     }
   };
 
@@ -70,7 +99,7 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Link href="/paths/new" className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow">
                 <p className="text-sm text-gray-500">我的路径</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">新建</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{paths.length}</p>
               </Link>
               <div className="bg-white rounded-xl shadow-sm p-4">
                 <p className="text-sm text-gray-500">好友</p>
@@ -80,6 +109,44 @@ export default function Home() {
                 <p className="text-sm text-gray-500">搭子</p>
                 <p className="text-2xl font-bold text-gray-900">0</p>
               </div>
+            </div>
+
+            {/* 已保存的学习路径 */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-semibold text-gray-900">已保存的路径</h3>
+                <Link href="/paths/new" className="text-sm text-indigo-600 hover:text-indigo-500">
+                  + 新建路径
+                </Link>
+              </div>
+              {pathsLoading ? (
+                <p className="text-sm text-gray-400">加载中...</p>
+              ) : paths.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-400 text-sm">还没有学习路径</p>
+                  <Link href="/paths/new" className="text-sm text-indigo-600 hover:text-indigo-500 mt-2 inline-block">
+                    创建你的第一条路径 →
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {paths.map((p) => (
+                    <Link
+                      key={p.id}
+                      href={`/paths/${p.id}`}
+                      className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/30 transition-colors"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{p.title}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {p.domain} · {new Date(p.createdAt).toLocaleDateString('zh-CN')}
+                        </p>
+                      </div>
+                      <span className="text-gray-300 text-sm">→</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ) : (

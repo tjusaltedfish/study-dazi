@@ -19,4 +19,17 @@ describe('extractJSON', () => {
   it('throws on garbage', () => {
     expect(() => extractJSON('not json at all')).toThrow();
   });
+
+  it('parses a JSON array (AI may return bare array)', () => {
+    const input = '[{"id":"1","title":"入门"},{"id":"2","title":"进阶"}]';
+    expect(extractJSON(input)).toEqual([
+      { id: '1', title: '入门' },
+      { id: '2', title: '进阶' },
+    ]);
+  });
+
+  it('extracts array from markdown code block', () => {
+    const input = '```json\n[{"a":1},{"b":2}]\n```';
+    expect(extractJSON(input)).toEqual([{ a: 1 }, { b: 2 }]);
+  });
 });
