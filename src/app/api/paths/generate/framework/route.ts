@@ -1,0 +1,49 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import prisma from '@/lib/prisma';
+import { chatWithDeepSeek } from '@/lib/deepseek';
+import { extractJSON } from '@/lib/extract-json';
+import { FRAMEWORK_PROMPT } from '@/lib/path-prompts';
+import { verifyAccessToken } from '@/lib/auth';
+
+const BodySchema = z.object({
+  domain: z.string().min(1, '请输入想学的领域'),
+  level: z.enum(['零基础', '有基础', '进阶']),
+  goal: z.string().optional(),
+  hours_per_week: z.number().optional(),
+});
+
+export async function POST(req: NextRequest) {
+  try {
+    const auth = req.headers.get('Authorization')?.replace('Bearer ', '');
+    if (!auth) return NextResponse.json({ error: '请先登录' }, { status: 401 });
+
+    const payload = await verifyAccessToken(auth);
+    const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!user?.deepseekApiKey) {
+      return NextResponse.json({ error: '请先在设置中配置 DeepSeek API Key' }, { status: 400 });
+    }
+
+    const body = BodySchema.parse(await req.json());
+
+    const userMsg = [
+      `领域：${body.domain}`,
+      `水平：${body.level}`,
+      body.goal && `目标：${body.goal}`,
+      body.hours_per_week && `每周投入：${body.hours_per_week}h`,
+    ].filter(Boolean).join('\n');
+
+    const response = await chatWithDeepSeek(user.deepseekApiKey, FRAMEWORK_PROMPT, userMsg);
+    const result = extractJSON(response);
+
+    return NextResponse.json(result);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: '参数错误', details: err.issues }, { status: 422 });
+    }
+    if (err instanceof Error) {
+      return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: '服务器错误' }, { status: 500 });
+  }
+}
