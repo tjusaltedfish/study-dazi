@@ -1,0 +1,78 @@
+'use client';
+
+import { create } from 'zustand';
+
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  emailVerified: boolean;
+}
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isLoading: boolean;
+  setAuth: (user: User, token: string) => void;
+  clearAuth: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<{ success: boolean; message: string; code?: string }>;
+  verifyEmail: (email: string, code: string) => Promise<void>;
+  refresh: () => Promise<void>;
+  logout: () => Promise<void>;
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  token: null,
+  isLoading: false,
+
+  setAuth: (user, token) => set({ user, token }),
+
+  clearAuth: () => set({ user: null, token: null }),
+
+  login: async (email, password) => {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '登录失败');
+    set({ user: data.user, token: data.token });
+  },
+
+  register: async (email, password): Promise<{ success: boolean; message: string; code?: string }> => {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '注册失败');
+    return data;
+  },
+
+  verifyEmail: async (email, code) => {
+    const res = await fetch('/api/auth/verify-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '验证失败');
+    set({ user: data.user, token: data.token });
+  },
+
+  refresh: async () => {
+    const res = await fetch('/api/auth/refresh', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '刷新失败');
+    set({ token: data.token });
+  },
+
+  logout: async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    set({ user: null, token: null });
+  },
+}));
