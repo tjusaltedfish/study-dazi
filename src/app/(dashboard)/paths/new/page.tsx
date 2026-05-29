@@ -220,24 +220,61 @@ export default function NewPathPage() {
   };
 
   const handleSave = async () => {
-    const tree = {
-      domain,
-      level,
-      phases: phases.map((p) => ({
-        ...p,
-        children: expandedPhases[p.id] || [],
-      })),
-    };
-
-    // 调试：检查保存的 children 数据
-    const cachedIds = Object.keys(expandedPhases);
-    const treeChildren = tree.phases.reduce((sum, p) => sum + ((p as Record<string,unknown>).children as unknown[] || []).length, 0);
-    console.log('[Save] expandedPhases keys:', cachedIds, 'total cached phases:', cachedIds.length);
-    console.log('[Save] phases count:', phases.length, 'total children in tree:', treeChildren);
-
     setError('');
     setLoading(true);
+
     try {
+      // 1. 收集已缓存的子节点，找出未展开的阶段
+      const allChildren: Record<string, TreeNode[]> = { ...expandedPhases };
+      const unexpanded = phases.filter((p) => !allChildren[p.id]);
+      const total = phases.length;
+      let completed = total - unexpanded.length;
+
+      // 2. 自动为所有未展开阶段生成子节点
+      if (unexpanded.length > 0) {
+        for (const phase of unexpanded) {
+          setProgress(Math.round((completed / total) * 100));
+          setProgressStatus(`正在生成「${phase.title}」的子节点 (${completed + 1}/${total})`);
+
+          try {
+            const res = await fetch('/api/paths/generate/nodes', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                domain,
+                phases_json: JSON.stringify(phases),
+                phase_id: phase.id,
+                phase_title: phase.title,
+              }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              allChildren[phase.id] = data.nodes || [];
+            }
+          } catch {
+            // 单个阶段失败不阻塞整体保存
+          }
+          completed++;
+        }
+      }
+
+      // 3. 构建完整树
+      const tree = {
+        domain,
+        level,
+        phases: phases.map((p) => ({
+          ...p,
+          children: allChildren[p.id] || [],
+        })),
+      };
+
+      setProgress(100);
+      setProgressStatus('正在保存路径...');
+
+      // 4. 保存
       const res = await fetch('/api/paths', {
         method: 'POST',
         headers: {
@@ -433,8 +470,8 @@ export default function NewPathPage() {
                   {!visibleExpanded.has(phase.id) ? (
                     <button
                       onClick={() => handleExpandPhase(phase.id, phase.title)}
-                      disabled={expandingPhase === phase.id}
-                      className="mt-3 text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+                      disabled={expandingPhase === phase.id || loading}
+                      className="mt-3 text-sm text-indigo-600 hover:text-indigo-500 font-medium disabled:opacity-50"
                     >
                       {expandingPhase === phase.id
                         ? '⏳ AI 正在生成子节点...'
@@ -458,10 +495,17 @@ export default function NewPathPage() {
               ))}
             </div>
 
+            {loading && (
+              <div className="bg-indigo-50 rounded-lg p-4">
+                <ProgressBar progress={progress} status={progressStatus} />
+              </div>
+            )}
+
             <div className="flex gap-3 pt-4">
               <button
                 onClick={() => setStep('intent')}
-                className="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                disabled={loading}
+                className="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
                 ← 重新生成
               </button>
@@ -470,7 +514,7 @@ export default function NewPathPage() {
                 disabled={loading}
                 className="flex-1 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
               >
-                {loading ? '保存中...' : '💾 保存路径'}
+                {loading ? '⏳ 正在生成并保存...' : '💾 保存路径'}
               </button>
             </div>
           </div>
