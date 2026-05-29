@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth';
 
 export default function RegisterPage() {
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -26,7 +27,7 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const result = await register(email, password);
+      const result = await register(username, email, password);
       const codeParam = result.code ? `&code=${result.code}` : '';
       router.push(`/verify?email=${encodeURIComponent(email)}${codeParam}`);
     } catch (err) {
@@ -48,6 +49,21 @@ export default function RegisterPage() {
           {error && (
             <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{error}</div>
           )}
+
+          <div>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+              用户名
+            </label>
+            <input
+              id="username"
+              type="text"
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+              placeholder="2-30 个字符，中英文、数字、下划线"
+            />
+          </div>
 
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">

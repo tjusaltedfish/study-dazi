@@ -41,12 +41,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 验证成功
-    const userName = await ensureUniqueUsername(user.username);
     await prisma.user.update({
       where: { email: body.email },
       data: {
         emailVerified: true,
-        username: userName,
         verificationCode: null,
         verificationCodeExpiresAt: null,
       },
@@ -94,14 +92,4 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// 确保用户名唯一（如果已有同名，加数字后缀）
-async function ensureUniqueUsername(base: string): Promise<string> {
-  const existing = await prisma.user.findUnique({ where: { username: base } });
-  if (!existing) return base;
-  for (let i = 1; i < 100; i++) {
-    const candidate = `${base}${i}`;
-    const taken = await prisma.user.findUnique({ where: { username: candidate } });
-    if (!taken) return candidate;
-  }
-  return `${base}_${Date.now()}`;
-}
+

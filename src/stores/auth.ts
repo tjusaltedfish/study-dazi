@@ -16,7 +16,7 @@ interface AuthState {
   setAuth: (user: User, token: string) => void;
   clearAuth: () => void;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<{ success: boolean; message: string; code?: string }>;
+  register: (username: string, email: string, password: string) => Promise<{ success: boolean; message: string; code?: string }>;
   verifyEmail: (email: string, code: string) => Promise<void>;
   refresh: () => Promise<void>;
   logout: () => Promise<void>;
@@ -42,11 +42,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: data.user, token: data.token });
   },
 
-  register: async (email, password): Promise<{ success: boolean; message: string; code?: string }> => {
+  register: async (username, email, password): Promise<{ success: boolean; message: string; code?: string }> => {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ username, email, password }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '注册失败');

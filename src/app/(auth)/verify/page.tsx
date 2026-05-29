@@ -42,7 +42,7 @@ function VerifyForm() {
   const handleResend = async () => {
     setError('');
     try {
-      const result = await register(email, 'ResendOnly1');
+      const result = await register('', email, 'ResendOnly1');
       if (result.code) setSentCode(result.code);
       setCountdown(60);
     } catch (err) {

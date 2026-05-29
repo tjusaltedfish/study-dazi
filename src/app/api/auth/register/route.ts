@@ -5,6 +5,11 @@ import prisma from '@/lib/prisma';
 import { sendVerificationCode } from '@/lib/email';
 
 const RegisterSchema = z.object({
+  username: z
+    .string()
+    .min(2, '用户名至少 2 个字符')
+    .max(30, '用户名最多 30 个字符')
+    .regex(/^[a-zA-Z0-9_\u4e00-\u9fff]+$/, '用户名只能包含中英文、数字和下划线'),
   email: z.string().email('请输入有效邮箱'),
   password: z
     .string()
@@ -24,20 +29,30 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await bcrypt.hash(body.password, 12);
     const code = String(Math.floor(100000 + Math.random() * 900000));
-    const username = body.email.split('@')[0];
+
+    // 检查用户名（仅在首次注册时）
+    if (body.username) {
+      const usernameTaken = await prisma.user.findUnique({ where: { username: body.username } });
+      if (usernameTaken && usernameTaken.email !== body.email) {
+        return NextResponse.json({ error: '该用户名已被使用' }, { status: 409 });
+      }
+    }
 
     // 新建或更新未验证用户，验证码存入 DB
+    const updateData: Record<string, unknown> = {
+      passwordHash,
+      verificationCode: code,
+      verificationCodeExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      verificationAttempts: 0,
+    };
+    if (body.username) updateData.username = body.username;
+
     await prisma.user.upsert({
       where: { email: body.email },
-      update: {
-        passwordHash,
-        verificationCode: code,
-        verificationCodeExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
-        verificationAttempts: 0,
-      },
+      update: updateData,
       create: {
         email: body.email,
-        username,
+        username: body.username,
         passwordHash,
         emailVerified: false,
         verificationCode: code,
