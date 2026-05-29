@@ -229,6 +229,12 @@ export default function NewPathPage() {
       })),
     };
 
+    // 调试：检查保存的 children 数据
+    const cachedIds = Object.keys(expandedPhases);
+    const treeChildren = tree.phases.reduce((sum, p) => sum + ((p as Record<string,unknown>).children as unknown[] || []).length, 0);
+    console.log('[Save] expandedPhases keys:', cachedIds, 'total cached phases:', cachedIds.length);
+    console.log('[Save] phases count:', phases.length, 'total children in tree:', treeChildren);
+
     setError('');
     setLoading(true);
     try {
@@ -432,9 +438,7 @@ export default function NewPathPage() {
                     >
                       {expandingPhase === phase.id
                         ? '⏳ AI 正在生成子节点...'
-                        : expandedPhases[phase.id]
-                          ? '+ 展开子节点（已缓存）'
-                          : '+ 展开子节点'}
+                        : '+ 展开子节点'}
                     </button>
                   ) : (
                     <button
