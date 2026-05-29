@@ -44,6 +44,7 @@ export default function PathDetailPage() {
   const [path, setPath] = useState<PathData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (token && id) {
@@ -66,6 +67,26 @@ export default function PathDetailPage() {
       setError(err instanceof Error ? err.message : '加载失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('确定要删除这个学习路径吗？此操作不可撤销。')) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/paths/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || '删除失败');
+      }
+      router.push('/');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '删除失败');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -105,6 +126,13 @@ export default function PathDetailPage() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-400">总计 ~{totalHours}h</span>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="text-sm text-red-500 hover:text-red-600 disabled:opacity-50"
+            >
+              {deleting ? '删除中...' : '🗑️ 删除'}
+            </button>
             <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
               返回
             </Link>

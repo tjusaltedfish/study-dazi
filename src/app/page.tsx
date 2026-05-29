@@ -62,6 +62,24 @@ export default function Home() {
     }
   };
 
+  const handleDeletePath = async (e: React.MouseEvent, pathId: string, title: string) => {
+    e.preventDefault(); // 阻止 Link 导航
+    e.stopPropagation();
+    if (!confirm(`确定删除「${title}」吗？此操作不可撤销。`)) return;
+    try {
+      const token = useAuthStore.getState().token;
+      const res = await fetch(`/api/paths/${pathId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setPaths((prev) => prev.filter((p) => p.id !== pathId));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200">
@@ -131,19 +149,24 @@ export default function Home() {
               ) : (
                 <div className="space-y-2">
                   {paths.map((p) => (
-                    <Link
+                    <div
                       key={p.id}
-                      href={`/paths/${p.id}`}
-                      className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/30 transition-colors"
+                      className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/30 transition-colors group"
                     >
-                      <div>
+                      <Link href={`/paths/${p.id}`} className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900">{p.title}</p>
                         <p className="text-xs text-gray-400 mt-0.5">
                           {p.domain} · {new Date(p.createdAt).toLocaleDateString('zh-CN')}
                         </p>
-                      </div>
-                      <span className="text-gray-300 text-sm">→</span>
-                    </Link>
+                      </Link>
+                      <button
+                        onClick={(e) => handleDeletePath(e, p.id, p.title)}
+                        className="ml-3 text-xs text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                        title="删除"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}

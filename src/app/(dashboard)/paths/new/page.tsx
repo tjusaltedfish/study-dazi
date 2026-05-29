@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
+import { ProgressBar } from '@/components/ui/progress-bar';
 
 type Step = 'intent' | 'framework' | 'nodes' | 'ready';
 
@@ -42,6 +43,43 @@ export default function NewPathPage() {
   const [expandedPhases, setExpandedPhases] = useState<Record<string, TreeNode[]>>({});
   const [expandingPhase, setExpandingPhase] = useState<string | null>(null);
 
+  // 进度条状态
+  const [progress, setProgress] = useState(0);
+  const [progressStatus, setProgressStatus] = useState('');
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startProgress = useCallback(() => {
+    setProgress(0);
+    setProgressStatus('正在连接 AI...');
+    
+    // 模拟进度：AI 生成通常需要 4-8 秒
+    const steps = [
+      { at: 800,  to: 15, status: '正在分析学习领域...' },
+      { at: 1600, to: 30, status: '正在设计课程框架...' },
+      { at: 2500, to: 50, status: '正在规划学习阶段...' },
+      { at: 3500, to: 65, status: '正在估算学习时长...' },
+      { at: 4500, to: 78, status: '正在优化阶段排序...' },
+      { at: 5500, to: 88, status: '即将完成...' },
+    ];
+
+    const startTime = Date.now();
+    progressTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const step = steps.find(s => elapsed < s.at) ?? { to: 92, status: '正在整理结果...' };
+      setProgress(step.to);
+      setProgressStatus(step.status);
+    }, 200);
+  }, []);
+
+  const finishProgress = useCallback(() => {
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+    setProgress(100);
+    setProgressStatus('完成！');
+  }, []);
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -53,6 +91,7 @@ export default function NewPathPage() {
   const handleGenerateFramework = async () => {
     setError('');
     setLoading(true);
+    startProgress();
     try {
       const res = await fetch('/api/paths/generate/framework', {
         method: 'POST',
@@ -92,8 +131,10 @@ export default function NewPathPage() {
       console.log('[NewPath] setting phases:', phases.length, 'step: framework');
       setPhases(phases);
       setStep('framework');
+      finishProgress();
     } catch (err) {
       setError(err instanceof Error ? err.message : '生成失败');
+      finishProgress();
     } finally {
       setLoading(false);
     }
@@ -251,12 +292,18 @@ export default function NewPathPage() {
               />
             </div>
 
+            {loading && (
+              <div className="bg-indigo-50 rounded-lg p-4">
+                <ProgressBar progress={progress} status={progressStatus} />
+              </div>
+            )}
+
             <button
               onClick={handleGenerateFramework}
               disabled={!domain.trim() || loading}
               className="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
             >
-              {loading ? '生成中...' : '✨ 生成学习框架'}
+              {loading ? '⏳ AI 正在生成学习路径...' : '✨ 生成学习框架'}
             </button>
           </div>
         )}
