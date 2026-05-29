@@ -25,16 +25,22 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await bcrypt.hash(body.password, 12);
     const code = verifyCodeStore.generate(body.email, passwordHash);
-    await sendVerificationCode(body.email, code);
 
-    const isDev = !process.env.RESEND_API_KEY;
+    // 尝试发邮件；如果没配 Resend 或发送失败，则返回验证码让页面显示
+    let emailSent = false;
+    try {
+      await sendVerificationCode(body.email, code);
+      emailSent = true;
+    } catch {
+      // Resend 发送失败（如域名未验证），降级为页面显示验证码
+    }
 
     return NextResponse.json({
       success: true,
-      message: isDev
-        ? `验证码：${code}（开发模式，验证码直接显示）`
-        : `验证码已发送至 ${body.email}`,
-      code: isDev ? code : undefined,
+      message: emailSent
+        ? `验证码已发送至 ${body.email}`
+        : `验证码：${code}`,
+      code: emailSent ? undefined : code,
     });
   } catch (err) {
     if (err instanceof z.ZodError) {

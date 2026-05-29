@@ -8,8 +8,7 @@ const FROM = process.env.EMAIL_FROM || 'Study-DaZi <noreply@study-dazi.app>';
 
 export async function sendVerificationCode(email: string, code: string): Promise<void> {
   if (!resend) {
-    console.log(`[DEV] 验证码: ${email} → ${code}`);
-    return;
+    throw new Error('RESEND_API_KEY 未配置');
   }
   await resend.emails.send({
     from: FROM,
@@ -28,8 +27,7 @@ export async function sendVerificationCode(email: string, code: string): Promise
 
 export async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<void> {
   if (!resend) {
-    console.log(`[DEV] 密码重置: ${email} → ${resetUrl}`);
-    return;
+    throw new Error('RESEND_API_KEY 未配置');
   }
   await resend.emails.send({
     from: FROM,
