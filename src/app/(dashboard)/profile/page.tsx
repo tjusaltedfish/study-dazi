@@ -103,8 +103,11 @@ export default function ProfilePage() {
     if (mdInputRef.current) mdInputRef.current.value = '';
   };
 
+  const [postError, setPostError] = useState('');
+
   const handlePost = async () => {
     if (!newContent.trim() && !newMarkdown) return;
+    setPostError('');
     setPosting(true);
     try {
       const body: Record<string, unknown> = { content: newContent, images: newImages };
@@ -113,12 +116,16 @@ export default function ProfilePage() {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       });
-      if (res.ok) {
-        const d = await res.json();
-        setPosts(prev => [d.post, ...prev]);
-        setNewContent(''); setNewImages([]); setNewMarkdown(''); setNewMarkdownName('');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `发布失败 (${res.status})`);
       }
-    } catch { /* ignore */ } finally { setPosting(false); }
+      const d = await res.json();
+      setPosts(prev => [d.post, ...prev]);
+      setNewContent(''); setNewImages([]); setNewMarkdown(''); setNewMarkdownName('');
+    } catch (err) {
+      setPostError(err instanceof Error ? err.message : '发布失败');
+    } finally { setPosting(false); }
   };
 
   const handleDeletePost = async (postId: string) => {
@@ -157,6 +164,7 @@ export default function ProfilePage() {
 
         {/* Post composer */}
         <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+          {postError && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{postError}</p>}
           <textarea value={newContent} onChange={e => setNewContent(e.target.value)}
             placeholder="分享你的学习心得...&#10;支持链接：[文本](https://...)" rows={3}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-indigo-400" />
