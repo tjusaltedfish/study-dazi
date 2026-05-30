@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '@/stores/auth';
 import Link from 'next/link';
 
 interface PostData {
-  id: string; content: string; images: string[]; createdAt: string;
+  id: string; content: string; images: string[]; markdown?: string; markdownHtml?: string; createdAt: string;
   user: { username: string; avatarUrl: string | null };
 }
 
@@ -15,6 +15,22 @@ function RichContent({ text }: { text: string }) {
     const m = part.match(/^\[(.*?)\]\((.*?)\)$/);
     return m ? <a key={i} href={m[2]} target="_blank" rel="noopener" className="text-indigo-600 underline hover:text-indigo-500">{m[1]}</a> : <span key={i}>{part}</span>;
   })}</span>;
+}
+
+// 简易 Markdown 渲染
+function MarkdownView({ text }: { text: string }) {
+  const html = text
+    .replace(/^### (.+)$/gm, '<h3 class="text-base font-bold mt-3 mb-1">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold mt-4 mb-2">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold mt-4 mb-2">$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code class="bg-gray-100 px-1 rounded text-sm">$1</code>')
+    .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="text-indigo-600 underline hover:text-indigo-500">$1</a>')
+    .replace(/\n\n/g, '</p><p class="mt-2">')
+    .replace(/\n/g, '<br/>');
+  return <div className="text-sm text-gray-800" dangerouslySetInnerHTML={{ __html: `<p>${html}</p>` }} />;
 }
 
 export default function ProfilePage() {
@@ -29,9 +45,16 @@ export default function ProfilePage() {
   const [editAvatar, setEditAvatar] = useState('');
   const [editBio, setEditBio] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Post composer
   const [newContent, setNewContent] = useState('');
-  const [newImages, setNewImages] = useState('');
+  const [newImages, setNewImages] = useState<string[]>([]);
+  const [newMarkdown, setNewMarkdown] = useState('');
+  const [newMarkdownName, setNewMarkdownName] = useState('');
   const [posting, setPosting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const imgInputRef = useRef<HTMLInputElement>(null);
+  const mdInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (token) loadProfile(); }, [token]);
 
@@ -46,37 +69,55 @@ export default function ProfilePage() {
     } catch { /* ignore */ } finally { setLoading(false); }
   };
 
-  const openEdit = () => {
-    if (!profile) return;
-    setEditName(profile.username); setEditAvatar(profile.avatarUrl); setEditBio(profile.bio);
-    setShowEdit(true);
+  const handleFileUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/upload', {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form,
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch { return null; } finally { setUploading(false); }
   };
 
-  const handleSaveProfile = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch('/api/users/me', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ username: editName, avatarUrl: editAvatar, bio: editBio }),
-      });
-      if (res.ok) {
-        setProfile({ username: editName, avatarUrl: editAvatar, bio: editBio });
-        setAuth({ ...user!, username: editName, email: user!.email, emailVerified: user!.emailVerified }, token!);
-        setShowEdit(false);
-      }
-    } catch { /* ignore */ } finally { setSaving(false); }
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    for (const file of Array.from(files).slice(0, 9 - newImages.length)) {
+      const result = await handleFileUpload(file);
+      if (result?.url) setNewImages(prev => [...prev, result.url]);
+    }
+    if (imgInputRef.current) imgInputRef.current.value = '';
+  };
+
+  const handleMdSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const result = await handleFileUpload(file);
+    if (result?.content) {
+      setNewMarkdown(result.content);
+      setNewMarkdownName(result.name);
+    }
+    if (mdInputRef.current) mdInputRef.current.value = '';
   };
 
   const handlePost = async () => {
-    if (!newContent.trim()) return;
+    if (!newContent.trim() && !newMarkdown) return;
     setPosting(true);
     try {
-      const images = newImages.split('\n').map(s => s.trim()).filter(Boolean);
+      const body: Record<string, unknown> = { content: newContent, images: newImages };
+      if (newMarkdown) { body.markdown = newMarkdown; body.markdownHtml = newMarkdown; }
       const res = await fetch('/api/posts', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ content: newContent, images }),
+        body: JSON.stringify(body),
       });
-      if (res.ok) { const d = await res.json(); setPosts(prev => [d.post, ...prev]); setNewContent(''); setNewImages(''); }
+      if (res.ok) {
+        const d = await res.json();
+        setPosts(prev => [d.post, ...prev]);
+        setNewContent(''); setNewImages([]); setNewMarkdown(''); setNewMarkdownName('');
+      }
     } catch { /* ignore */ } finally { setPosting(false); }
   };
 
@@ -100,7 +141,6 @@ export default function ProfilePage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-        {/* Profile card */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-start gap-4">
             <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center text-2xl shrink-0 overflow-hidden">
@@ -110,7 +150,8 @@ export default function ProfilePage() {
               <h2 className="text-xl font-bold text-gray-900">{profile?.username}</h2>
               {profile?.bio && <p className="text-sm text-gray-500 mt-1">{profile.bio}</p>}
             </div>
-            <button onClick={openEdit} className="text-sm text-indigo-600 hover:text-indigo-500 shrink-0">编辑资料</button>
+            <button onClick={() => { setEditName(profile?.username||''); setEditAvatar(profile?.avatarUrl||''); setEditBio(profile?.bio||''); setShowEdit(true); }}
+              className="text-sm text-indigo-600 hover:text-indigo-500 shrink-0">编辑资料</button>
           </div>
         </div>
 
@@ -119,11 +160,45 @@ export default function ProfilePage() {
           <textarea value={newContent} onChange={e => setNewContent(e.target.value)}
             placeholder="分享你的学习心得...&#10;支持链接：[文本](https://...)" rows={3}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-indigo-400" />
-          <input type="text" value={newImages} onChange={e => setNewImages(e.target.value)}
-            placeholder="图片 URL（每行一个，最多4张）"
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-400" />
-          <div className="flex justify-end">
-            <button onClick={handlePost} disabled={!newContent.trim() || posting}
+
+          {/* Image previews */}
+          {newImages.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {newImages.map((url, i) => (
+                <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <button onClick={() => setNewImages(prev => prev.filter((_, j) => j !== i))}
+                    className="absolute top-0.5 right-0.5 bg-black/50 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Markdown file indicator */}
+          {newMarkdownName && (
+            <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded px-3 py-1.5">
+              📄 {newMarkdownName}
+              <button onClick={() => { setNewMarkdown(''); setNewMarkdownName(''); }} className="text-red-400 hover:text-red-600 text-xs">移除</button>
+            </div>
+          )}
+
+          {uploading && <p className="text-xs text-gray-400">上传中...</p>}
+
+          <div className="flex items-center gap-2">
+            <input ref={imgInputRef} type="file" accept="image/*" multiple onChange={handleImageSelect}
+              className="hidden" />
+            <button onClick={() => imgInputRef.current?.click()}
+              className="text-xs text-gray-500 hover:text-indigo-600 flex items-center gap-1">
+              🖼️ 图片
+            </button>
+            <input ref={mdInputRef} type="file" accept=".md,.markdown" onChange={handleMdSelect}
+              className="hidden" />
+            <button onClick={() => mdInputRef.current?.click()}
+              className="text-xs text-gray-500 hover:text-indigo-600 flex items-center gap-1">
+              📄 Markdown
+            </button>
+            <div className="flex-1" />
+            <button onClick={handlePost} disabled={(!newContent.trim() && !newMarkdown) || posting}
               className="px-4 py-1.5 rounded-md bg-indigo-600 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50">
               {posting ? '发布中...' : '发布'}
             </button>
@@ -146,11 +221,12 @@ export default function ProfilePage() {
                   <button onClick={() => handleDeletePost(post.id)} className="text-xs text-gray-300 hover:text-red-500">🗑️</button>
                 )}
               </div>
-              <p className="text-sm text-gray-800 whitespace-pre-wrap break-words"><RichContent text={post.content} /></p>
+              {post.content && <p className="text-sm text-gray-800 whitespace-pre-wrap break-words"><RichContent text={post.content} /></p>}
+              {post.markdown && <MarkdownView text={post.markdown} />}
               {post.images?.length > 0 && (
-                <div className={`mt-3 grid gap-2 ${post.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                <div className={`mt-3 grid gap-2 ${post.images.length === 1 ? 'grid-cols-1' : post.images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                   {post.images.map((url, i) => (
-                    <img key={i} src={url} alt="" className="rounded-lg w-full object-cover max-h-64" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    <img key={i} src={url} alt="" className="rounded-lg w-full object-cover max-h-48" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   ))}
                 </div>
               )}
@@ -164,15 +240,29 @@ export default function ProfilePage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowEdit(false)}>
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm mx-4 w-full space-y-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-900">编辑资料</h3>
-            <div><label className="block text-sm font-medium text-gray-700">头像 URL</label>
-              <input type="text" value={editAvatar} onChange={e => setEditAvatar(e.target.value)} placeholder="https://..." className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500" /></div>
+            <div><label className="block text-sm font-medium text-gray-700">头像</label>
+              <div className="flex items-center gap-3 mt-1">
+                <input type="file" accept="image/*" onChange={async e => {
+                  const f = e.target.files?.[0]; if (!f) return;
+                  const form = new FormData(); form.append('file', f);
+                  const res = await fetch('/api/upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
+                  if (res.ok) { const d = await res.json(); if (d.url) setEditAvatar(d.url); }
+                }} className="text-xs" />
+              </div>
+              <input type="text" value={editAvatar} onChange={e => setEditAvatar(e.target.value)} placeholder="或粘贴 URL" className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500" /></div>
             <div><label className="block text-sm font-medium text-gray-700">用户名</label>
               <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500" /></div>
             <div><label className="block text-sm font-medium text-gray-700">简介</label>
               <textarea value={editBio} onChange={e => setEditBio(e.target.value)} rows={2} maxLength={200} placeholder="介绍一下自己..." className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm resize-none outline-none focus:border-indigo-500" /></div>
             <div className="flex gap-3">
               <button onClick={() => setShowEdit(false)} className="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">取消</button>
-              <button onClick={handleSaveProfile} disabled={saving} className="flex-1 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50">{saving ? '保存中...' : '保存'}</button>
+              <button onClick={async () => {
+                setSaving(true);
+                try {
+                  const res = await fetch('/api/users/me', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ username: editName, avatarUrl: editAvatar, bio: editBio }) });
+                  if (res.ok) { setProfile({ username: editName, avatarUrl: editAvatar, bio: editBio }); setAuth({ ...user!, username: editName, email: user!.email, emailVerified: user!.emailVerified }, token!); setShowEdit(false); }
+                } catch { /* ignore */ } finally { setSaving(false); }
+              }} disabled={saving} className="flex-1 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50">{saving ? '保存中...' : '保存'}</button>
             </div>
           </div>
         </div>

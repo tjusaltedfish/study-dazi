@@ -19,8 +19,10 @@ export async function GET(req: NextRequest) {
 }
 
 const CreateSchema = z.object({
-  content: z.string().min(1).max(2000),
-  images: z.array(z.string()).max(4).optional(),
+  content: z.string().min(1).max(5000),
+  images: z.array(z.string()).max(9).optional(),
+  markdown: z.string().optional(),
+  markdownHtml: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -30,7 +32,12 @@ export async function POST(req: NextRequest) {
     const payload = await verifyAccessToken(auth);
     const body = CreateSchema.parse(await req.json());
     const post = await prisma.post.create({
-      data: { userId: payload.sub, content: body.content, images: body.images || [] },
+      data: {
+        userId: payload.sub, content: body.content,
+        images: body.images || [],
+        markdown: body.markdown,
+        markdownHtml: body.markdownHtml,
+      },
       include: { user: { select: { username: true, avatarUrl: true } } },
     });
     return NextResponse.json({ post }, { status: 201 });
