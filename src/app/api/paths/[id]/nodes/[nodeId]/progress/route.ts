@@ -53,6 +53,17 @@ export async function PUT(
       create: { userId: payload.sub, pathId, nodeId, ...data },
     });
 
+    // 节点标记完成 → 自动打卡
+    if (body.status === 'completed') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      await prisma.checkIn.upsert({
+        where: { userId_checkInDate: { userId: payload.sub, checkInDate: today } },
+        update: { pathId, nodeId },
+        create: { userId: payload.sub, checkInDate: today, pathId, nodeId },
+      });
+    }
+
     return NextResponse.json({ progress });
   } catch (err) {
     if (err instanceof z.ZodError) {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth';
 import Link from 'next/link';
+import { CheckInWidget } from '@/components/checkin/checkin-widget';
 
 interface PathItem {
   id: string;
@@ -113,6 +114,8 @@ export default function Home() {
               <h2 className="text-xl font-semibold text-gray-900">欢迎回来，{user.username} 👋</h2>
               <p className="text-gray-500 mt-1">准备好今天的学习了吗？</p>
             </div>
+
+            <CheckInWidget />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Link href="/paths/new" className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow">

@@ -22,6 +22,7 @@ model User {
   refreshTokens             RefreshToken[]
   learningPaths             LearningPath[]
   nodeProgress              UserNodeProgress[]
+  checkIns                  CheckIn[]
 
   @@map("users")
 }
@@ -60,6 +61,21 @@ model UserNodeProgress {
   @@unique([userId, pathId, nodeId])
   @@index([userId, pathId])
   @@map("user_node_progress")
+}
+
+model CheckIn {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  pathId      String?  @map("path_id")
+  nodeId      String?  @map("node_id")
+  checkInDate DateTime @map("check_in_date") @db.Date
+  durationMin Int?     @map("duration_min")
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, checkInDate])
+  @@index([userId, checkInDate])
+  @@map("check_ins")
 }
 
 model RefreshToken {
