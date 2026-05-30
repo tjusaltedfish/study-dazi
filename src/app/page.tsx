@@ -24,6 +24,7 @@ export default function Home() {
   const [buddyCount, setBuddyCount] = useState(0);
   const [buddies, setBuddies] = useState<{ id: string; domain: string; buddy: { id: string; username: string }; sharedPathId?: string | null; sharedPathTitle?: string | null }[]>([]);
   const [notifCount, setNotifCount] = useState(0);
+  const [msgCount, setMsgCount] = useState(0);
 
   // 登录后检查是否有 API Key + 加载路径列表
   useEffect(() => {
@@ -33,6 +34,7 @@ export default function Home() {
       loadPendingCount();
       loadBuddyCount();
       loadNotifCount();
+      loadMsgCount();
     }
   }, [user]);
 
@@ -41,6 +43,14 @@ export default function Home() {
       const token = useAuthStore.getState().token;
       const res = await fetch('/api/notifications', { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) { const d = await res.json(); setNotifCount(d.unreadCount || 0); }
+    } catch { /* ignore */ }
+  };
+
+  const loadMsgCount = async () => {
+    try {
+      const token = useAuthStore.getState().token;
+      const res = await fetch('/api/messages', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const d = await res.json(); setMsgCount(d.unreadCount || 0); }
     } catch { /* ignore */ }
   };
 
@@ -143,7 +153,14 @@ export default function Home() {
                   </span>
                 )}
               </Link>
-              <Link href="/messages" className="text-sm text-gray-500 hover:text-indigo-600">💬</Link>
+              <Link href="/messages" className="text-sm text-gray-500 hover:text-indigo-600 relative">
+                💬
+                {msgCount > 0 && (
+                  <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {msgCount}
+                  </span>
+                )}
+              </Link>
               <Link href="/settings" className="text-sm text-gray-500 hover:text-gray-700">
                 设置
               </Link>

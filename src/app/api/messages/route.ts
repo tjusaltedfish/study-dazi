@@ -39,7 +39,8 @@ export async function GET(req: NextRequest) {
         convMap.get(other.id)!.unread++;
       }
     }
-    return NextResponse.json({ conversations: [...convMap.values()] });
+    const totalUnread = [...convMap.values()].reduce((s, c) => s + c.unread, 0);
+    return NextResponse.json({ conversations: [...convMap.values()], unreadCount: totalUnread });
   } catch { return NextResponse.json({ error: '服务器错误' }, { status: 500 }); }
 }
 
@@ -54,11 +55,6 @@ export async function POST(req: NextRequest) {
 
     const msg = await prisma.message.create({
       data: { fromUserId: payload.sub, toUserId, content },
-    });
-
-    // 通知
-    await prisma.notification.create({
-      data: { userId: toUserId, type: 'message', content: `新消息: ${content.substring(0, 50)}`, referenceId: payload.sub },
     });
 
     return NextResponse.json({ message: msg }, { status: 201 });

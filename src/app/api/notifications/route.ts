@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
     const payload = await verifyAccessToken(auth);
 
     const [notifs, unreadCount] = await Promise.all([
-      prisma.notification.findMany({ where: { userId: payload.sub }, orderBy: { createdAt: 'desc' }, take: 30 }),
-      prisma.notification.count({ where: { userId: payload.sub, read: false } }),
+      prisma.notification.findMany({ where: { userId: payload.sub, type: { not: 'message' } }, orderBy: { createdAt: 'desc' }, take: 30 }),
+      prisma.notification.count({ where: { userId: payload.sub, read: false, type: { not: 'message' } } }),
     ]);
 
     return NextResponse.json({ notifications: notifs, unreadCount });
