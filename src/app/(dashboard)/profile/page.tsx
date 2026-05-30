@@ -10,29 +10,38 @@ interface PostData {
 }
 
 function RichContent({ text }: { text: string }) {
-  // 先处理 [text](url)，再处理裸 URL
-  const linked = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '%%LINK%%$1%%URL%%$2%%END%%');
-  const parts = linked.split(/%%(LINK|URL|END)%%/);
-  const result: React.ReactNode[] = [];
-  let i = 0;
-  while (i < parts.length) {
-    if (parts[i] === 'LINK' && parts[i+2] === 'END') {
-      result.push(<a key={i} href={parts[i+1]} target="_blank" rel="noopener" className="text-indigo-600 underline hover:text-indigo-500">{parts[i-1]}</a>);
-      i += 3;
-    } else {
-      // Auto-detect raw URLs in text
-      const text2 = parts[i] || '';
-      const urlRegex = /(https?:\/\/[^\s<>"]+)/g;
-      const subParts = text2.split(urlRegex);
-      const matches = text2.match(urlRegex) || [];
-      subParts.forEach((sp, j) => {
-        if (sp) result.push(<span key={`${i}-${j}`}>{sp}</span>);
-        if (matches[j]) result.push(<a key={`${i}-link-${j}`} href={matches[j]} target="_blank" rel="noopener" className="text-indigo-600 underline hover:text-indigo-500">{matches[j]}</a>);
-      });
-      i++;
-    }
-  }
-  return <span>{result}</span>;
+  // 裸 URL 正则（排除末尾标点符号和括号）
+  const urlPattern = 'https?:\\/\\/[^\\s<>\"「」『』()（）\\[\\]{}。，,.;;:：!！?？、]+';
+
+  // 先把 [文字](url) 替换为占位符
+  const markdownLinks: { text: string; url: string }[] = [];
+  const withMd = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, t, u) => {
+    markdownLinks.push({ text: t, url: u });
+    return `%%MDLINK${markdownLinks.length - 1}%%`;
+  });
+
+  // 按占位符和裸 URL 分割（保留分隔符）
+  const splitRe = new RegExp(`(%%MDLINK\\d+%%|${urlPattern})`, 'g');
+  const segments = withMd.split(splitRe);
+
+  return (
+    <span>
+      {segments.map((seg, i) => {
+        if (!seg) return null;
+        // Markdown 链接占位符
+        const md = seg.match(/^%%MDLINK(\d+)%%$/);
+        if (md) {
+          const link = markdownLinks[parseInt(md[1])];
+          return <a key={i} href={link.url} target="_blank" rel="noopener" className="text-indigo-600 underline hover:text-indigo-500">{link.text}</a>;
+        }
+        // 裸 URL
+        if (/^https?:\/\//.test(seg)) {
+          return <a key={i} href={seg} target="_blank" rel="noopener" className="text-indigo-600 underline hover:text-indigo-500">{seg}</a>;
+        }
+        return <span key={i}>{seg}</span>;
+      })}
+    </span>
+  );
 }
 
 // 简易 Markdown 渲染
