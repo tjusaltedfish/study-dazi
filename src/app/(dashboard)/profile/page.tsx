@@ -33,6 +33,7 @@ export default function ProfilePage() {
   const [newImages, setNewImages] = useState<string[]>([]);
   const [newMarkdown, setNewMarkdown] = useState('');
   const [newMarkdownName, setNewMarkdownName] = useState('');
+  const [newVisibility, setNewVisibility] = useState('public');
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -92,7 +93,7 @@ export default function ProfilePage() {
     if (!newContent.trim() && !newMarkdown) return;
     setPostError(''); setPosting(true);
     try {
-      const body: Record<string, unknown> = { content: newContent, images: newImages };
+      const body: Record<string, unknown> = { content: newContent, images: newImages, visibility: newVisibility };
       if (newMarkdown) { body.markdown = newMarkdown; body.markdownHtml = newMarkdown; }
       const res = await fetch('/api/posts', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error((await res.json().catch(()=>({}))).error || '发布失败');
@@ -202,6 +203,12 @@ export default function ProfilePage() {
                     <button onClick={() => imgInputRef.current?.click()} disabled={uploading} className="text-xs text-gray-500">🖼️ 图片</button>
                     <input ref={mdInputRef} type="file" accept=".md" onChange={async e => { const f = e.target.files?.[0]; if (!f) return; setUploading(true); const form = new FormData(); form.append('file', f); const res = await fetch('/api/upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form }); if (res.ok) { const d = await res.json(); if (d.content) { setNewMarkdown(d.content); setNewMarkdownName(d.name); } } setUploading(false); if (mdInputRef.current) mdInputRef.current.value = ''; }} className="hidden" />
                     <button onClick={() => mdInputRef.current?.click()} className="text-xs text-gray-500">📄 md</button>
+                    <select value={newVisibility} onChange={e => setNewVisibility(e.target.value)}
+                      className="text-xs border rounded px-1 py-0.5 text-gray-500">
+                      <option value="public">🌐 公开</option>
+                      <option value="friends">👥 好友</option>
+                      <option value="buddies">🤝 搭子</option>
+                    </select>
                     <div className="flex-1" />
                     <button onClick={handlePost} disabled={(!newContent.trim() && !newMarkdown) || posting}
                       className="px-3 py-1 rounded-md bg-indigo-600 text-xs text-white">{posting ? '发布中' : '发布'}</button>

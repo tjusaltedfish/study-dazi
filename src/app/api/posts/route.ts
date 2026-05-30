@@ -23,6 +23,7 @@ const CreateSchema = z.object({
   images: z.array(z.string()).max(9).optional(),
   markdown: z.string().optional(),
   markdownHtml: z.string().optional(),
+  visibility: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
         images: body.images || [],
         markdown: body.markdown,
         markdownHtml: body.markdownHtml,
+        visibility: body.visibility || 'public',
       },
       include: { user: { select: { username: true, avatarUrl: true } } },
     });
