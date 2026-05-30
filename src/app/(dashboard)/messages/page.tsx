@@ -64,56 +64,105 @@ function MessagesPageInner() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-lg font-bold">{chatUser ? chatUser.username : '消息'}</h1>
-          <div className="flex gap-3">
-            {chatUser && <button onClick={() => setChatUser(null)} className="text-sm text-gray-500">← 返回</button>}
-            <Link href="/" className="text-sm text-gray-500">首页</Link>
-          </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <header className="bg-white border-b border-gray-200 shrink-0">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+          <h1 className="text-lg font-bold text-gray-900">消息</h1>
+          <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">首页</Link>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-8">
-        {!chatUser ? (
-          <div className="space-y-2">
+      <main className="flex-1 max-w-5xl mx-auto w-full flex overflow-hidden" style={{ height: 'calc(100vh - 53px)' }}>
+        {/* Left sidebar: conversation list */}
+        <div className={`${chatUser ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-80 lg:w-96 border-r border-gray-200 bg-white shrink-0`}>
+          <div className="p-3 border-b border-gray-100">
+            <p className="text-xs text-gray-400">会话列表</p>
+          </div>
+          <div className="flex-1 overflow-y-auto">
             {convs.map(c => (
               <button key={c.user.id} onClick={() => openChat(c.user)}
-                className="w-full bg-white rounded-lg p-3 flex items-center gap-3 hover:bg-gray-50 text-left">
-                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                  {c.user.username[0]?.toUpperCase()}
+                className={`w-full p-3 flex items-center gap-3 hover:bg-gray-50 text-left border-b border-gray-50 transition-colors ${chatUser?.id === c.user.id ? 'bg-indigo-50 border-l-2 border-l-indigo-500' : ''}`}>
+                <div className="relative shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-medium text-indigo-600 overflow-hidden">
+                    {c.user.avatarUrl ? <img src={c.user.avatarUrl} className="w-full h-full object-cover" /> : c.user.username[0]?.toUpperCase()}
+                  </div>
+                  {c.unread > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">
+                      {c.unread}
+                    </span>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{c.user.username}</span>
-                    <span className="text-xs text-gray-400">{new Date(c.time).toLocaleDateString('zh-CN')}</span>
+                    <span className="text-sm font-medium text-gray-900">{c.user.username}</span>
+                    <span className="text-[10px] text-gray-400 shrink-0 ml-2">{new Date(c.time).toLocaleDateString('zh-CN')}</span>
                   </div>
-                  <p className="text-xs text-gray-500 truncate">{c.lastMsg}</p>
+                  <p className="text-xs text-gray-500 truncate mt-0.5">{c.lastMsg}</p>
                 </div>
-                {c.unread > 0 && <span className="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">{c.unread}</span>}
               </button>
             ))}
-            {convs.length === 0 && <p className="text-center text-gray-400 py-8">暂无消息</p>}
+            {convs.length === 0 && (
+              <div className="p-8 text-center">
+                <p className="text-gray-400 text-sm">暂无会话</p>
+                <p className="text-gray-300 text-xs mt-1">从好友列表或主页搭子空间发起私信</p>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-sm h-[70vh] flex flex-col">
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {msgs.map(m => (
-                <div key={m.id} className={`flex ${m.fromUserId === myId ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[70%] px-3 py-2 rounded-lg text-sm ${m.fromUserId === myId ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
-                    {m.content}
-                  </div>
+        </div>
+
+        {/* Right panel: chat view */}
+        <div className={`${chatUser ? 'flex' : 'hidden md:flex'} flex-col flex-1 bg-gray-50`}>
+          {chatUser ? (
+            <>
+              {/* Chat header */}
+              <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 shrink-0">
+                <button onClick={() => setChatUser(null)} className="md:hidden text-sm text-gray-500 mr-1">←</button>
+                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-medium text-indigo-600 shrink-0">
+                  {chatUser.username[0]?.toUpperCase()}
                 </div>
-              ))}
+                <span className="text-sm font-semibold text-gray-900">{chatUser.username}</span>
+              </div>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {msgs.length === 0 && (
+                  <p className="text-center text-gray-400 text-sm py-8">暂无消息，发送第一条打个招呼吧 👋</p>
+                )}
+                {msgs.map(m => {
+                  const isMine = m.fromUserId === myId;
+                  return (
+                    <div key={m.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                      {!isMine && (
+                        <span className="text-[10px] text-gray-400 mb-0.5 ml-1">{m.fromUser.username}</span>
+                      )}
+                      <div className={`max-w-[75%] px-3 py-2 rounded-lg text-sm ${isMine ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'}`}>
+                        {m.content}
+                      </div>
+                      <span className="text-[10px] text-gray-300 mt-0.5 mx-1">
+                        {new Date(m.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Input */}
+              <div className="bg-white border-t border-gray-200 p-3 flex gap-2 shrink-0">
+                <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMsg()}
+                  placeholder="输入消息..." className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-400" />
+                <button onClick={sendMsg} className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-500 transition-colors">发送</button>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <p className="text-4xl mb-3">💬</p>
+                <p className="text-gray-400 text-sm">选择一个会话开始聊天</p>
+                <p className="text-gray-300 text-xs mt-1">或从好友页面发起新对话</p>
+              </div>
             </div>
-            <div className="border-t p-3 flex gap-2">
-              <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMsg()}
-                placeholder="输入消息..." className="flex-1 border rounded-lg px-3 py-2 text-sm" />
-              <button onClick={sendMsg} className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg">发送</button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </main>
     </div>
   );
