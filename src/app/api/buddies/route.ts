@@ -43,7 +43,11 @@ export async function POST(req: NextRequest) {
     });
     if (exist) return NextResponse.json({ error: '已发送过邀请' }, { status: 400 });
 
+    const fromUser = await prisma.user.findUnique({ where: { id: payload.sub }, select: { username: true } });
     await prisma.studyBuddy.create({ data: { fromUserId: payload.sub, toUserId, domain } });
+    await prisma.notification.create({
+      data: { userId: toUserId, type: 'buddy_invite', content: `${fromUser?.username || '用户'} 邀请你成为「${domain}」搭子`, referenceId: payload.sub },
+    });
     return NextResponse.json({ success: true }, { status: 201 });
   } catch { return NextResponse.json({ error: '服务器错误' }, { status: 500 }); }
 }

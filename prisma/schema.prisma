@@ -33,6 +33,9 @@ model User {
   sentBuddies               StudyBuddy[] @relation("buddyFrom")
   receivedBuddies           StudyBuddy[] @relation("buddyTo")
   comments                  NodeComment[]
+  sentMessages              Message[]     @relation("msgFrom")
+  receivedMessages          Message[]     @relation("msgTo")
+  notifications             Notification[]
 
   @@map("users")
 }
@@ -153,6 +156,35 @@ model StudyBuddy {
 
   @@unique([fromUserId, toUserId, domain])
   @@map("study_buddies")
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  fromUserId String   @map("from_user_id")
+  toUserId   String   @map("to_user_id")
+  content    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  fromUser   User     @relation("msgFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     User     @relation("msgTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([fromUserId, toUserId, createdAt(sort: Desc)])
+  @@index([toUserId, read])
+  @@map("messages")
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  type        String   // friend_request | buddy_invite | like | comment | message
+  referenceId String?  @map("reference_id")
+  content     String
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt(sort: Desc)])
+  @@map("notifications")
 }
 
 model NodeComment {

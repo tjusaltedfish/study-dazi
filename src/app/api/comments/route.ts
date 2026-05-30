@@ -31,6 +31,11 @@ export async function POST(req: NextRequest) {
       data: { userId: payload.sub, pathId, nodeId, content },
       include: { user: { select: { id: true, username: true, avatarUrl: true } } },
     });
+    const path = await prisma.learningPath.findUnique({ where: { id: pathId }, select: { userId: true } });
+    if (path && path.userId !== payload.sub) {
+      const fromUser = await prisma.user.findUnique({ where: { id: payload.sub }, select: { username: true } });
+      await prisma.notification.create({ data: { userId: path.userId, type: 'comment', content: `${fromUser?.username} 评论了你的学习路径`, referenceId: pathId } });
+    }
     return NextResponse.json({ comment }, { status: 201 });
   } catch { return NextResponse.json({ error: '服务器错误' }, { status: 500 }); }
 }

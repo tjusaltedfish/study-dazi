@@ -21,6 +21,7 @@ export default function Home() {
   const [pathsLoading, setPathsLoading] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [friendCount, setFriendCount] = useState(0);
+  const [notifCount, setNotifCount] = useState(0);
 
   // 登录后检查是否有 API Key + 加载路径列表
   useEffect(() => {
@@ -28,8 +29,17 @@ export default function Home() {
       checkApiKey();
       loadPaths();
       loadPendingCount();
+      loadNotifCount();
     }
   }, [user]);
+
+  const loadNotifCount = async () => {
+    try {
+      const token = useAuthStore.getState().token;
+      const res = await fetch('/api/notifications', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const d = await res.json(); setNotifCount(d.unreadCount || 0); }
+    } catch { /* ignore */ }
+  };
 
   const loadPendingCount = async () => {
     try {
@@ -114,6 +124,15 @@ export default function Home() {
               <Link href="/profile" className="text-sm text-gray-600 hover:text-indigo-600">
                 {user.username}
               </Link>
+              <Link href="/notifications" className="text-sm text-gray-500 hover:text-indigo-600 relative">
+                🔔
+                {notifCount > 0 && (
+                  <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {notifCount}
+                  </span>
+                )}
+              </Link>
+              <Link href="/messages" className="text-sm text-gray-500 hover:text-indigo-600">💬</Link>
               <Link href="/settings" className="text-sm text-gray-500 hover:text-gray-700">
                 设置
               </Link>

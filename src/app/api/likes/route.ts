@@ -23,10 +23,19 @@ export async function POST(req: NextRequest) {
     const payload = await verifyAccessToken(auth);
     const { postId, resourceId } = await req.json();
     
+    const fromUser = await prisma.user.findUnique({ where: { id: payload.sub }, select: { username: true } });
     if (postId) {
+      const post = await prisma.post.findUnique({ where: { id: postId }, select: { userId: true } });
       await prisma.like.create({ data: { userId: payload.sub, postId } });
+      if (post && post.userId !== payload.sub) {
+        await prisma.notification.create({ data: { userId: post.userId, type: 'like', content: `${fromUser?.username} 赞了你的动态`, referenceId: postId } });
+      }
     } else if (resourceId) {
+      const res = await prisma.resource.findUnique({ where: { id: resourceId }, select: { userId: true } });
       await prisma.like.create({ data: { userId: payload.sub, resourceId } });
+      if (res && res.userId !== payload.sub) {
+        await prisma.notification.create({ data: { userId: res.userId, type: 'like', content: `${fromUser?.username} 收藏了你的资源`, referenceId: resourceId } });
+      }
     }
     return NextResponse.json({ success: true }, { status: 201 });
   } catch {

@@ -53,8 +53,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: existing.status === 'accepted' ? '已经是好友' : '已发送过申请' }, { status: 400 });
     }
 
+    const fromUser = await prisma.user.findUnique({ where: { id: payload.sub }, select: { username: true } });
     await prisma.friendship.create({
       data: { fromUserId: payload.sub, toUserId, status: 'pending' },
+    });
+    await prisma.notification.create({
+      data: { userId: toUserId, type: 'friend_request', content: `${fromUser?.username || '用户'} 请求添加你为好友`, referenceId: payload.sub },
     });
 
     return NextResponse.json({ success: true }, { status: 201 });
