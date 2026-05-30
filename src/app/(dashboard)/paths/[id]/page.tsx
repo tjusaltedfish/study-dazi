@@ -11,6 +11,7 @@ interface PathData {
   id: string;
   title: string;
   domain: string;
+  userId: string;
   isPublic: boolean;
   isTemplate: boolean;
   treeData: {
@@ -24,6 +25,7 @@ interface PathData {
 export default function PathDetailPage() {
   const { id } = useParams<{ id: string }>();
   const token = useAuthStore((s) => s.token);
+  const currentUser = useAuthStore((s) => s.user);
   const router = useRouter();
   const [path, setPath] = useState<PathData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -142,6 +144,13 @@ export default function PathDetailPage() {
     } catch { /* ignore */ } finally { setSaving(false); }
   };
 
+  const handleFork = async () => {
+    try {
+      const res = await fetch(`/api/paths/${id}/fork`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const d = await res.json(); router.push(`/paths/${d.id}`); }
+    } catch { /* ignore */ }
+  };
+
   const handleDelete = async () => {
     if (!confirm('确定要删除这个学习路径吗？此操作不可撤销。')) return;
     setDeleting(true);
@@ -180,6 +189,7 @@ export default function PathDetailPage() {
 
   if (!path) return null;
 
+  const isOwner = currentUser?.id === path.userId;
   const phases = path.treeData?.phases || [];
   const totalHours = phases.reduce((sum, p) => sum + (p.estimated_hours || 0), 0);
 
@@ -228,23 +238,30 @@ export default function PathDetailPage() {
               </div>
             )}
             <span className="text-sm text-gray-400">~{totalHours}h</span>
-            <button onClick={() => editMode ? handleSaveAll() : setEditMode(true)}
-              className={`text-sm ${editMode ? 'text-emerald-600' : 'text-gray-400'} hover:text-emerald-500`}>
-              {editMode ? (saving ? '保存中...' : '💾 保存') : '✏️ 编辑'}
-            </button>
-            {editMode && (
-              <button onClick={() => setEditMode(false)} className="text-sm text-gray-400 hover:text-gray-600">
-                取消
+            {isOwner ? (
+              <>
+                <button onClick={() => editMode ? handleSaveAll() : setEditMode(true)}
+                  className={`text-sm ${editMode ? 'text-emerald-600' : 'text-gray-400'} hover:text-emerald-500`}>
+                  {editMode ? (saving ? '保存中...' : '💾 保存') : '✏️ 编辑'}
+                </button>
+                {editMode && (
+                  <button onClick={() => setEditMode(false)} className="text-sm text-gray-400 hover:text-gray-600">取消</button>
+                )}
+                <button onClick={handleShare}
+                  className={`text-sm ${path.isTemplate ? 'text-amber-600' : 'text-gray-400'} hover:text-amber-500`}>
+                  {path.isTemplate ? '🌟 已分享' : '📤 分享'}
+                </button>
+                <button onClick={handleDelete} disabled={deleting}
+                  className="text-sm text-red-500 hover:text-red-600 disabled:opacity-50">
+                  {deleting ? '删除中...' : '🗑️ 删除'}
+                </button>
+              </>
+            ) : (
+              <button onClick={handleFork}
+                className="text-sm text-indigo-600 hover:text-indigo-500">
+                🔀 Fork 到我的路径
               </button>
             )}
-            <button onClick={handleShare}
-              className={`text-sm ${path.isTemplate ? 'text-amber-600' : 'text-gray-400'} hover:text-amber-500`}>
-              {path.isTemplate ? '🌟 已分享' : '📤 分享'}
-            </button>
-            <button onClick={handleDelete} disabled={deleting}
-              className="text-sm text-red-500 hover:text-red-600 disabled:opacity-50">
-              {deleting ? '删除中...' : '🗑️ 删除'}
-            </button>
             <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">返回</Link>
           </div>
         </div>
@@ -291,13 +308,13 @@ export default function PathDetailPage() {
         </div>
       )}
 
-      {/* Node drawer */}
+      {/* Node drawer — 仅所有者可修改进度 */}
       {!editMode && <NodeDrawer
         node={selectedNode}
         pathId={id}
         progressMap={progressMap}
         onClose={() => setSelectedNode(null)}
-        onProgressChange={handleProgressChange}
+        onProgressChange={isOwner ? handleProgressChange : () => {}}
       />}
     </div>
   );
