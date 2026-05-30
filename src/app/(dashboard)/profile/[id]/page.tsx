@@ -42,7 +42,7 @@ export default function FriendProfilePage() {
   useEffect(() => { if (token && id) loadData(); }, [token, id]);
 
   const openBuddy = async () => {
-    setShowBuddy(true); setBuddyError(''); setBuddySuccess('');
+    setShowBuddy(true); setBuddyError(''); setBuddySuccess(false);
     try {
       const res = await fetch('/api/paths', { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) { const d = await res.json(); setBuddyPaths(d.paths || []); }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useAuthStore } from '@/stores/auth';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -9,6 +9,14 @@ interface Conv { user: { id: string; username: string; avatarUrl: string | null 
 interface Msg { id: string; content: string; createdAt: string; fromUser: { username: string }; fromUserId: string; }
 
 export default function MessagesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-gray-400">加载中...</p></div>}>
+      <MessagesPageInner />
+    </Suspense>
+  );
+}
+
+function MessagesPageInner() {
   const token = useAuthStore(s => s.token);
   const myId = useAuthStore(s => s.user?.id);
   const params = useSearchParams();
