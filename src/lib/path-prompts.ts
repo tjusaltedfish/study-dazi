@@ -11,7 +11,8 @@ phases 数组包含 4-8 个一级学习阶段。每个阶段：{ id: string, tit
 2. 可选节点（is_required:false）最多 2 个
 3. 节点排序必须符合学习的先后依赖关系
 4. 时间估算偏保守（大多数人能完成的节奏）
-5. 领域本身很窄（如只学一个工具），可以少于 4 个阶段`;
+5. 领域本身很窄（如只学一个工具），可以少于 4 个阶段
+6. title 和 description 必须精炼，description 不超过 40 字，why 不超过 25 字`;
 
 export const NODES_PROMPT = `你是一位资深课程设计师。用户确认了一级框架后，为指定阶段展开详细子节点。
 
@@ -25,4 +26,5 @@ nodes 数组包含 3-6 个子节点。每个子节点：{ id: string, title: str
 1. 至少 2 个 required 节点（保证主线完整）
 2. optional + advanced 节点加起来不超过 2 个
 3. check_criteria 必须具体、可验证（如"独立写出一个响应式导航栏"，而不是"理解了"）
-4. 纯工具使用类阶段减少理论节点，增加实操节点`;
+4. 纯工具使用类阶段减少理论节点，增加实操节点
+5. description 不超过 30 字，check_criteria 不超过 25 字，resources_hint 不超过 20 字`;

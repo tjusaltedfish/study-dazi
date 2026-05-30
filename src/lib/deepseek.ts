@@ -18,8 +18,8 @@ export async function chatWithDeepSeek(
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage },
       ],
-      temperature: options?.temperature ?? 0.3,
-      max_tokens: options?.maxTokens ?? 2048,
+      temperature: options?.temperature ?? 0.1,
+      max_tokens: options?.maxTokens ?? 1024,
     }),
   });
 

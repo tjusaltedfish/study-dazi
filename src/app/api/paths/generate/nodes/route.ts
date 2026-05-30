@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       `当前要展开的阶段：${body.phase_id} — ${body.phase_title}`,
     ].join('\n');
 
-    const response = await chatWithDeepSeek(apiKey, NODES_PROMPT, userMsg);
+    const response = await chatWithDeepSeek(apiKey, NODES_PROMPT, userMsg, { maxTokens: 500 });
     const result = extractJSON(response);
 
     // 防御：AI 可能返回裸数组而非 { nodes: [...] }，统一归一化
