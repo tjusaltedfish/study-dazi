@@ -91,10 +91,12 @@ export default function Home() {
               <Link href="/paths/new" className="text-sm text-indigo-600 hover:text-indigo-500">
                 生成路径
               </Link>
+              <Link href="/profile" className="text-sm text-gray-600 hover:text-indigo-600">
+                {user.username}
+              </Link>
               <Link href="/settings" className="text-sm text-gray-500 hover:text-gray-700">
                 设置
               </Link>
-              <span className="text-sm text-gray-600">{user.username}</span>
               <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-700">
                 退出
               </button>
