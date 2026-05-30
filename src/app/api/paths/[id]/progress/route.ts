@@ -4,14 +4,14 @@ import { verifyAccessToken } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ pathId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = req.headers.get('Authorization')?.replace('Bearer ', '');
     if (!auth) return NextResponse.json({ error: '请先登录' }, { status: 401 });
 
     const payload = await verifyAccessToken(auth);
-    const { pathId } = await params;
+    const { id: pathId } = await params;
 
     const records = await prisma.userNodeProgress.findMany({
       where: { userId: payload.sub, pathId },

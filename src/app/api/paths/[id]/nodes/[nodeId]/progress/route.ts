@@ -5,14 +5,14 @@ import { verifyAccessToken } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ pathId: string; nodeId: string }> }
+  { params }: { params: Promise<{ id: string; nodeId: string }> }
 ) {
   try {
     const auth = req.headers.get('Authorization')?.replace('Bearer ', '');
     if (!auth) return NextResponse.json({ error: '请先登录' }, { status: 401 });
 
     const payload = await verifyAccessToken(auth);
-    const { pathId, nodeId } = await params;
+    const { id: pathId, nodeId } = await params;
 
     const progress = await prisma.userNodeProgress.findUnique({
       where: { userId_pathId_nodeId: { userId: payload.sub, pathId, nodeId } },
@@ -31,14 +31,14 @@ const PutSchema = z.object({
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ pathId: string; nodeId: string }> }
+  { params }: { params: Promise<{ id: string; nodeId: string }> }
 ) {
   try {
     const auth = req.headers.get('Authorization')?.replace('Bearer ', '');
     if (!auth) return NextResponse.json({ error: '请先登录' }, { status: 401 });
 
     const payload = await verifyAccessToken(auth);
-    const { pathId, nodeId } = await params;
+    const { id: pathId, nodeId } = await params;
     const body = PutSchema.parse(await req.json());
 
     const now = new Date();
