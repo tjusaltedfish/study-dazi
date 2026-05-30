@@ -48,29 +48,33 @@ export default function ProfilePage() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [postRes, resRes, pathRes] = await Promise.all([
+      const [postRes, resRes, pathRes, meRes] = await Promise.all([
         fetch(`/api/posts?userId=${user?.id}`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/resources?mine=1', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/paths', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/users/me', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       if (postRes.ok) setPosts((await postRes.json()).posts || []);
       if (resRes.ok) setResources((await resRes.json()).resources || []);
       if (pathRes.ok) setPaths((await pathRes.json()).paths || []);
-    } catch { /* ignore */ } finally { setLoading(false); }
-
-    // Load profile
-    try {
-      const meRes = await fetch('/api/users/me', { headers: { Authorization: `Bearer ${token}` } });
       if (meRes.ok) { const d = await meRes.json(); setProfile({ username: d.username, avatarUrl: d.avatarUrl || '', bio: d.bio || '' }); }
-    } catch { /* ignore */ }
+    } catch { /* ignore */ } finally { setLoading(false); }
   };
 
   // --- Profile edit ---
+  const [profileSaved, setProfileSaved] = useState(false);
+
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
       const res = await fetch('/api/users/me', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ username: editName, avatarUrl: editAvatar, bio: editBio }) });
-      if (res.ok) { setProfile({ username: editName, avatarUrl: editAvatar, bio: editBio }); setAuth({ ...user!, username: editName, email: user!.email, emailVerified: user!.emailVerified }, token!); setShowEdit(false); }
+      if (res.ok) {
+        setProfile({ username: editName, avatarUrl: editAvatar, bio: editBio });
+        setAuth({ ...user!, username: editName, email: user!.email, emailVerified: user!.emailVerified }, token!);
+        setShowEdit(false);
+        setProfileSaved(true);
+        setTimeout(() => setProfileSaved(false), 2000);
+      }
     } catch { /* ignore */ } finally { setSaving(false); }
   };
 
@@ -134,7 +138,7 @@ export default function ProfilePage() {
     } catch { /* ignore */ }
   };
 
-  if (loading && !profile) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-gray-400">加载中...</p></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-gray-400">加载中...</p></div>;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -158,6 +162,7 @@ export default function ProfilePage() {
             </div>
             <button onClick={() => { setEditName(profile?.username||''); setEditAvatar(profile?.avatarUrl||''); setEditBio(profile?.bio||''); setShowEdit(true); }}
               className="text-sm text-indigo-600 hover:text-indigo-500 shrink-0">编辑资料</button>
+            {profileSaved && <span className="text-xs text-emerald-600 ml-2">✅ 已保存</span>}
           </div>
         </div>
 
