@@ -11,6 +11,8 @@ interface PathData {
   id: string;
   title: string;
   domain: string;
+  isPublic: boolean;
+  isTemplate: boolean;
   treeData: {
     domain: string;
     level: string;
@@ -29,6 +31,10 @@ export default function PathDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [progressMap, setProgressMap] = useState<ProgressMap>({});
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editingNode, setEditingNode] = useState<TreeNode | null>(null);
+  const [editForm, setEditForm] = useState({ title: '', description: '', estimated_hours: 0 });
+  const [saving, setSaving] = useState(false);
 
   // Load path + progress
   useEffect(() => {
@@ -58,8 +64,13 @@ export default function PathDetailPage() {
   };
 
   const handleNodeClick = useCallback((node: TreeNode) => {
-    setSelectedNode(node);
-  }, []);
+    if (editMode) {
+      setEditingNode(node);
+      setEditForm({ title: node.title, description: node.description || '', estimated_hours: node.estimated_hours || 0 });
+    } else {
+      setSelectedNode(node);
+    }
+  }, [editMode]);
 
   const handleProgressChange = useCallback((nodeId: string, status: NodeStatus) => {
     setProgressMap((prev) => ({
@@ -67,6 +78,69 @@ export default function PathDetailPage() {
       [nodeId]: { status, notes: prev[nodeId]?.notes },
     }));
   }, []);
+
+  const handleShare = async () => {
+    const newVal = !path?.isTemplate;
+    try {
+      await fetch(`/api/paths/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ isPublic: newVal, isTemplate: newVal }),
+      });
+      setPath(prev => prev ? { ...prev, isPublic: newVal, isTemplate: newVal } : null);
+    } catch { /* ignore */ }
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingNode || !path) return;
+    const updateNode = (nodes: TreeNode[]): TreeNode[] => nodes.map(n => {
+      if (n.id === editingNode.id) return { ...n, title: editForm.title, description: editForm.description, estimated_hours: editForm.estimated_hours };
+      if (n.children) return { ...n, children: updateNode(n.children) };
+      return n;
+    });
+    const newPhases = updateNode(phases);
+    const newTree = { ...path.treeData, phases: newPhases };
+    setPath({ ...path, treeData: newTree });
+    setEditingNode(null);
+  };
+
+  const handleDeleteNode = () => {
+    if (!editingNode || !path || !confirm('删除这个节点？')) return;
+    const deleteNode = (nodes: TreeNode[]): TreeNode[] =>
+      nodes.filter(n => n.id !== editingNode.id).map(n => n.children ? { ...n, children: deleteNode(n.children) } : n);
+    const newPhases = deleteNode(phases);
+    const newTree = { ...path.treeData, phases: newPhases };
+    setPath({ ...path, treeData: newTree });
+    setEditingNode(null);
+  };
+
+  const handleAddChild = () => {
+    if (!editingNode || !path) return;
+    const newId = 'node-' + Date.now();
+    const newNode: TreeNode = { id: newId, title: '新节点', description: '', estimated_hours: 1, node_type: 'required', children: [] };
+    const addChild = (nodes: TreeNode[]): TreeNode[] => nodes.map(n => {
+      if (n.id === editingNode.id) return { ...n, children: [...(n.children || []), newNode] };
+      if (n.children) return { ...n, children: addChild(n.children) };
+      return n;
+    });
+    const newPhases = addChild(phases);
+    const newTree = { ...path.treeData, phases: newPhases };
+    setPath({ ...path, treeData: newTree });
+    setEditingNode(null);
+  };
+
+  const handleSaveAll = async () => {
+    if (!path) return;
+    setSaving(true);
+    try {
+      await fetch(`/api/paths/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ tree_data: path.treeData }),
+      });
+      setEditMode(false);
+    } catch { /* ignore */ } finally { setSaving(false); }
+  };
 
   const handleDelete = async () => {
     if (!confirm('确定要删除这个学习路径吗？此操作不可撤销。')) return;
@@ -154,6 +228,19 @@ export default function PathDetailPage() {
               </div>
             )}
             <span className="text-sm text-gray-400">~{totalHours}h</span>
+            <button onClick={() => editMode ? handleSaveAll() : setEditMode(true)}
+              className={`text-sm ${editMode ? 'text-emerald-600' : 'text-gray-400'} hover:text-emerald-500`}>
+              {editMode ? (saving ? '保存中...' : '💾 保存') : '✏️ 编辑'}
+            </button>
+            {editMode && (
+              <button onClick={() => setEditMode(false)} className="text-sm text-gray-400 hover:text-gray-600">
+                取消
+              </button>
+            )}
+            <button onClick={handleShare}
+              className={`text-sm ${path.isTemplate ? 'text-amber-600' : 'text-gray-400'} hover:text-amber-500`}>
+              {path.isTemplate ? '🌟 已分享' : '📤 分享'}
+            </button>
             <button onClick={handleDelete} disabled={deleting}
               className="text-sm text-red-500 hover:text-red-600 disabled:opacity-50">
               {deleting ? '删除中...' : '🗑️ 删除'}
@@ -164,6 +251,11 @@ export default function PathDetailPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
+        {editMode && (
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-700">
+            ✏️ 编辑模式：点击节点修改，修改后记得点「💾 保存」
+          </div>
+        )}
         <div className="bg-white rounded-xl shadow-sm p-6">
           {phases.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
@@ -179,14 +271,34 @@ export default function PathDetailPage() {
         </div>
       </main>
 
+      {/* Edit node modal */}
+      {editingNode && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setEditingNode(null)}>
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm mx-4 w-full space-y-3" onClick={e => e.stopPropagation()}>
+            <h3 className="font-semibold">编辑节点</h3>
+            <input type="text" value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
+              className="w-full border rounded-md px-3 py-2 text-sm" placeholder="节点名称" />
+            <input type="text" value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
+              className="w-full border rounded-md px-3 py-2 text-sm" placeholder="描述" />
+            <input type="number" value={editForm.estimated_hours} onChange={e => setEditForm(p => ({ ...p, estimated_hours: +e.target.value }))}
+              className="w-24 border rounded-md px-3 py-2 text-sm" placeholder="小时" />
+            <div className="flex gap-2">
+              <button onClick={handleSaveEdit} className="flex-1 py-1.5 rounded-md bg-indigo-600 text-sm text-white">确认</button>
+              <button onClick={handleAddChild} className="py-1.5 px-3 rounded-md border text-sm">+ 子节点</button>
+              <button onClick={handleDeleteNode} className="py-1.5 px-3 rounded-md border text-sm text-red-500">删除</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Node drawer */}
-      <NodeDrawer
+      {!editMode && <NodeDrawer
         node={selectedNode}
         pathId={id}
         progressMap={progressMap}
         onClose={() => setSelectedNode(null)}
         onProgressChange={handleProgressChange}
-      />
+      />}
     </div>
   );
 }
