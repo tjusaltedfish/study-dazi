@@ -1,20 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(false);
   const setAuth = useAuthStore((s) => s.setAuth);
 
   useEffect(() => {
-    // 尝试用 refresh token 恢复登录态
+    // 后台静默恢复登录态，不阻塞页面渲染
     fetch('/api/auth/refresh', { method: 'POST' })
       .then(async (res) => {
         if (!res.ok) return;
         const data = await res.json();
         if (data.token) {
-          // 拿到新 token 后获取用户信息
           const meRes = await fetch('/api/auth/me', {
             headers: { Authorization: `Bearer ${data.token}` },
           });
@@ -24,17 +22,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       })
-      .catch(() => {})
-      .finally(() => setReady(true));
+      .catch(() => {});
   }, [setAuth]);
 
-  if (!ready) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-400 text-sm">加载中...</p>
-      </div>
-    );
-  }
-
+  // 不阻塞渲染 — 各页面自行处理 user 为 null 的情况
   return <>{children}</>;
 }
