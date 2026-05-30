@@ -25,13 +25,44 @@ export default function ExplorePage() {
   const [domain, setDomain] = useState('');
   const [search, setSearch] = useState('');
   const [suggestedDomains, setSuggestedDomains] = useState<string[]>([]);
+  const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
+  const [likedResourceIds, setLikedResourceIds] = useState<Set<string>>(new Set());
+  const [showLiked, setShowLiked] = useState(false);
 
   const [showResourceForm, setShowResourceForm] = useState(false);
   const [resForm, setResForm] = useState({ title: '', url: '', domain: '', description: '', notes: '' });
   const [resSubmitting, setResSubmitting] = useState(false);
   const [resError, setResError] = useState('');
 
-  useEffect(() => { loadTab('posts'); loadDomains(); }, []);
+  useEffect(() => { loadTab('posts'); loadDomains(); loadLikes(); }, []);
+
+  const loadLikes = async () => {
+    try {
+      const res = await fetch('/api/likes', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const d = await res.json();
+        const pIds = new Set<string>(); const rIds = new Set<string>();
+        for (const l of d.likes || []) {
+          if (l.postId) pIds.add(l.postId);
+          if (l.resourceId) rIds.add(l.resourceId);
+        }
+        setLikedPostIds(pIds); setLikedResourceIds(rIds);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const toggleLike = async (postId?: string, resourceId?: string) => {
+    const isLiked = postId ? likedPostIds.has(postId) : resourceId ? likedResourceIds.has(resourceId!) : false;
+    try {
+      if (isLiked) {
+        await fetch('/api/likes', { method: 'DELETE', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ postId, resourceId }) });
+      } else {
+        await fetch('/api/likes', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ postId, resourceId }) });
+      }
+      if (postId) setLikedPostIds(prev => { const n = new Set(prev); isLiked ? n.delete(postId) : n.add(postId); return n; });
+      if (resourceId) setLikedResourceIds(prev => { const n = new Set(prev); isLiked ? n.delete(resourceId!) : n.add(resourceId!); return n; });
+    } catch { /* ignore */ }
+  };
 
   const loadDomains = async () => {
     try {
@@ -127,8 +158,12 @@ export default function ExplorePage() {
           <>
             {tab === 'posts' && (
               <div className="space-y-4">
-                {posts.length === 0 && <p className="text-center text-gray-400 py-12">暂无动态</p>}
-                {posts.map(p => (
+                <button onClick={() => setShowLiked(!showLiked)}
+                  className={`text-xs ${showLiked ? 'text-red-500' : 'text-gray-400'} hover:text-red-500`}>
+                  {showLiked ? '❤️ 我的收藏' : '🤍 我的收藏'}
+                </button>
+                {posts.filter(p => !showLiked || likedPostIds.has(p.id)).length === 0 && <p className="text-center text-gray-400 py-12">暂无动态</p>}
+                {posts.filter(p => !showLiked || likedPostIds.has(p.id)).map(p => (
                   <div key={p.id} className="bg-white rounded-xl shadow-sm p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Link href={`/profile/${p.user.id}`} className="flex items-center gap-2 hover:underline">
@@ -138,6 +173,11 @@ export default function ExplorePage() {
                         <span className="text-sm font-medium text-gray-700">{p.user.username}</span>
                       </Link>
                       <span className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleDateString('zh-CN')}</span>
+                      <div className="flex-1" />
+                      <button onClick={() => toggleLike(p.id, undefined)}
+                        className={`text-sm ${likedPostIds.has(p.id) ? 'text-red-500' : 'text-gray-300'} hover:text-red-500`}>
+                        {likedPostIds.has(p.id) ? '❤️' : '🤍'}
+                      </button>
                     </div>
                     <p className="text-sm text-gray-800 whitespace-pre-wrap">{p.content}</p>
                     {p.markdown && <div className="mt-2 text-sm text-gray-700 italic border-l-2 border-gray-200 pl-3">{p.markdown.substring(0, 200)}</div>}
@@ -149,8 +189,14 @@ export default function ExplorePage() {
 
             {tab === 'resources' && (
               <div className="space-y-4">
-                <button onClick={() => { setShowResourceForm(!showResourceForm); setResError(''); }}
-                  className="text-sm text-indigo-600 hover:text-indigo-500">+ 分享资源</button>
+                <div className="flex items-center gap-4">
+                  <button onClick={() => { setShowResourceForm(!showResourceForm); setResError(''); }}
+                    className="text-sm text-indigo-600 hover:text-indigo-500">+ 分享资源</button>
+                  <button onClick={() => setShowLiked(!showLiked)}
+                    className={`text-xs ${showLiked ? 'text-red-500' : 'text-gray-400'} hover:text-red-500`}>
+                    {showLiked ? '❤️ 我的收藏' : '🤍 我的收藏'}
+                  </button>
+                </div>
                 {showResourceForm && (
                   <div className="bg-white rounded-xl shadow-sm p-4 space-y-2">
                     {resError && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{resError}</p>}
@@ -173,14 +219,19 @@ export default function ExplorePage() {
                     </button>
                   </div>
                 )}
-                {resources.length === 0 && <p className="text-center text-gray-400 py-8">暂无资源</p>}
-                {resources.map(r => (
+                {resources.filter(r => !showLiked || likedResourceIds.has(r.id)).length === 0 && <p className="text-center text-gray-400 py-8">暂无资源</p>}
+                {resources.filter(r => !showLiked || likedResourceIds.has(r.id)).map(r => (
                   <div key={r.id} className="bg-white rounded-xl shadow-sm p-4">
                     <div className="flex items-center gap-2">
                       {r.url ? (
                         <a href={r.url} target="_blank" rel="noopener" className="text-sm font-medium text-indigo-600 hover:underline">{r.title}</a>
                       ) : <span className="text-sm font-medium">{r.title}</span>}
                       <span className="text-xs px-2 py-0.5 rounded bg-gray-100">{r.domain}</span>
+                      <div className="flex-1" />
+                      <button onClick={() => toggleLike(undefined, r.id)}
+                        className={`text-sm ${likedResourceIds.has(r.id) ? 'text-red-500' : 'text-gray-300'} hover:text-red-500`}>
+                        {likedResourceIds.has(r.id) ? '❤️' : '🤍'}
+                      </button>
                     </div>
                     {r.description && <p className="text-xs text-gray-500 mt-1">{r.description}</p>}
                     {r.notes && <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap border-l-2 border-amber-200 pl-3">{r.notes.substring(0, 300)}</p>}

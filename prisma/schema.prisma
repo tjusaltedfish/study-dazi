@@ -29,6 +29,7 @@ model User {
   sentRequests              Friendship[] @relation("from")
   receivedRequests          Friendship[] @relation("to")
   resources                 Resource[]
+  likes                     Like[]
 
   @@map("users")
 }
@@ -130,6 +131,20 @@ model Resource {
   @@index([domain])
   @@index([userId, createdAt(sort: Desc)])
   @@map("resources")
+}
+
+model Like {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  postId     String?  @map("post_id")
+  resourceId String?  @map("resource_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@unique([userId, resourceId])
+  @@index([userId])
+  @@map("likes")
 }
 
 model RefreshToken {
