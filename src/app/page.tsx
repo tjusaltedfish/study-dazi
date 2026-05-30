@@ -20,6 +20,7 @@ export default function Home() {
   const [paths, setPaths] = useState<PathItem[]>([]);
   const [pathsLoading, setPathsLoading] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [friendCount, setFriendCount] = useState(0);
 
   // 登录后检查是否有 API Key + 加载路径列表
   useEffect(() => {
@@ -34,7 +35,7 @@ export default function Home() {
     try {
       const token = useAuthStore.getState().token;
       const res = await fetch('/api/friends', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) { const d = await res.json(); setPendingCount(d.requests?.length || 0); }
+      if (res.ok) { const d = await res.json(); setPendingCount(d.requests?.length || 0); setFriendCount(d.friends?.length || 0); }
     } catch { /* ignore */ }
   };
 
@@ -145,7 +146,7 @@ export default function Home() {
               </Link>
               <div className="bg-white rounded-xl shadow-sm p-4">
                 <p className="text-sm text-gray-500">好友</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-2xl font-bold text-gray-900">{friendCount}</p>
               </div>
               <div className="bg-white rounded-xl shadow-sm p-4">
                 <p className="text-sm text-gray-500">搭子</p>
