@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       body.hours_per_week && `每周投入：${body.hours_per_week}h`,
     ].filter(Boolean).join('\n');
 
-    const response = await chatWithDeepSeek(apiKey, FRAMEWORK_PROMPT, userMsg, { maxTokens: 900 });
+    const response = await chatWithDeepSeek(apiKey, FRAMEWORK_PROMPT, userMsg, { maxTokens: 1500 });
     let result: object;
     try {
       result = extractJSON(response);
