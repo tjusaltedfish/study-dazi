@@ -21,6 +21,7 @@ model User {
   updatedAt                 DateTime       @updatedAt @map("updated_at")
   refreshTokens             RefreshToken[]
   learningPaths             LearningPath[]
+  nodeProgress              UserNodeProgress[]
 
   @@map("users")
 }
@@ -36,11 +37,29 @@ model LearningPath {
   forkCount  Int      @default(0) @map("fork_count")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nodeProgress UserNodeProgress[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([isTemplate, domain])
   @@map("learning_paths")
+}
+
+model UserNodeProgress {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  pathId      String    @map("path_id")
+  nodeId      String    @map("node_id")
+  status      String    @default("locked") // locked | unlocked | in_progress | completed
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  notes       String?
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  path        LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pathId, nodeId])
+  @@index([userId, pathId])
+  @@map("user_node_progress")
 }
 
 model RefreshToken {

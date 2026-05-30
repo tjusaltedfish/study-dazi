@@ -1,29 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import Link from 'next/link';
-
-interface TreeNode {
-  id: string;
-  title: string;
-  description: string;
-  estimated_hours: number;
-  node_type: 'required' | 'optional' | 'advanced';
-  resources_hint: string;
-  check_criteria: string;
-}
-
-interface Phase {
-  id: string;
-  title: string;
-  description: string;
-  estimated_hours: number;
-  is_required: boolean;
-  why: string;
-  children?: TreeNode[];
-}
+import { TreeRenderer, type TreeNode, type ProgressMap, type NodeStatus } from '@/components/path/tree-renderer';
+import { NodeDrawer } from '@/components/path/node-drawer';
 
 interface PathData {
   id: string;
@@ -32,7 +14,7 @@ interface PathData {
   treeData: {
     domain: string;
     level: string;
-    phases: Phase[];
+    phases: (TreeNode & { is_required?: boolean; why?: string })[];
   };
   createdAt: string;
 }
@@ -45,30 +27,46 @@ export default function PathDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [progressMap, setProgressMap] = useState<ProgressMap>({});
+  const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
 
+  // Load path + progress
   useEffect(() => {
     if (token && id) {
-      loadPath();
+      loadData();
     }
   }, [token, id]);
 
-  const loadPath = async () => {
+  const loadData = async () => {
     try {
-      const res = await fetch(`/api/paths/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || '加载失败');
+      const [pathRes, progRes] = await Promise.all([
+        fetch(`/api/paths/${id}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/api/paths/${id}/progress`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      if (!pathRes.ok) throw new Error('加载失败');
+      const pathData = await pathRes.json();
+      setPath(pathData.path);
+      if (progRes.ok) {
+        const progData = await progRes.json();
+        setProgressMap(progData.progress || {});
       }
-      const data = await res.json();
-      setPath(data.path);
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载失败');
     } finally {
       setLoading(false);
     }
   };
+
+  const handleNodeClick = useCallback((node: TreeNode) => {
+    setSelectedNode(node);
+  }, []);
+
+  const handleProgressChange = useCallback((nodeId: string, status: NodeStatus) => {
+    setProgressMap((prev) => ({
+      ...prev,
+      [nodeId]: { status, notes: prev[nodeId]?.notes },
+    }));
+  }, []);
 
   const handleDelete = async () => {
     if (!confirm('确定要删除这个学习路径吗？此操作不可撤销。')) return;
@@ -78,10 +76,7 @@ export default function PathDetailPage() {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || '删除失败');
-      }
+      if (!res.ok) throw new Error('删除失败');
       router.push('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : '删除失败');
@@ -103,9 +98,7 @@ export default function PathDetailPage() {
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-3xl mx-auto px-4 py-8">
           <div className="bg-red-50 text-red-600 px-4 py-3 rounded-md text-sm">{error}</div>
-          <button onClick={() => router.push('/')} className="mt-4 text-sm text-indigo-600 hover:text-indigo-500">
-            ← 返回首页
-          </button>
+          <button onClick={() => router.push('/')} className="mt-4 text-sm text-indigo-600">← 返回首页</button>
         </div>
       </div>
     );
@@ -116,85 +109,84 @@ export default function PathDetailPage() {
   const phases = path.treeData?.phases || [];
   const totalHours = phases.reduce((sum, p) => sum + (p.estimated_hours || 0), 0);
 
+  // Count completed nodes
+  const countCompleted = (nodes: TreeNode[]): number => {
+    let count = 0;
+    for (const n of nodes) {
+      if (progressMap[n.id]?.status === 'completed') count++;
+      if (n.children) count += countCompleted(n.children);
+    }
+    return count;
+  };
+  const countAll = (nodes: TreeNode[]): number => {
+    let count = 0;
+    for (const n of nodes) {
+      count++;
+      if (n.children) count += countAll(n.children);
+    }
+    return count;
+  };
+  const completedCount = countCompleted(phases);
+  const totalCount = countAll(phases);
+  const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold text-gray-900">{path.title}</h1>
             <p className="text-xs text-gray-400">{path.domain} · {new Date(path.createdAt).toLocaleDateString('zh-CN')}</p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-400">总计 ~{totalHours}h</span>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="text-sm text-red-500 hover:text-red-600 disabled:opacity-50"
-            >
+            {/* Mini progress ring */}
+            {totalCount > 0 && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="w-8 h-8 rounded-full border-2 border-indigo-200 flex items-center justify-center relative">
+                  <svg viewBox="0 0 36 36" className="w-8 h-8 -rotate-90 absolute">
+                    <circle cx="18" cy="18" r="14" fill="none" stroke="#e5e7eb" strokeWidth="3" />
+                    <circle cx="18" cy="18" r="14" fill="none" stroke="#6366f1" strokeWidth="3"
+                      strokeDasharray={`${progressPct * 0.88} 88`} strokeLinecap="round" />
+                  </svg>
+                  <span className="text-[10px] font-bold text-indigo-600">{progressPct}%</span>
+                </div>
+                <span className="text-xs">{completedCount}/{totalCount}</span>
+              </div>
+            )}
+            <span className="text-sm text-gray-400">~{totalHours}h</span>
+            <button onClick={handleDelete} disabled={deleting}
+              className="text-sm text-red-500 hover:text-red-600 disabled:opacity-50">
               {deleting ? '删除中...' : '🗑️ 删除'}
             </button>
-            <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
-              返回
-            </Link>
+            <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">返回</Link>
           </div>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-8">
-        <div className="space-y-3">
-          {phases.map((phase) => (
-            <div key={phase.id} className="bg-white rounded-xl shadow-sm p-5">
-              <div className="flex items-start gap-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-0.5 rounded ${
-                      phase.is_required ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      {phase.is_required ? '必修' : '可选'}
-                    </span>
-                    <h3 className="font-semibold text-gray-900">{phase.title}</h3>
-                    <span className="text-xs text-gray-400">~{phase.estimated_hours}h</span>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">{phase.description}</p>
-                  <p className="text-xs text-gray-400 mt-1">{phase.why}</p>
-
-                  {/* 子节点 */}
-                  {phase.children && phase.children.length > 0 && (
-                    <div className="mt-3 ml-4 border-l-2 border-indigo-100 pl-4 space-y-2">
-                      {phase.children.map((node) => (
-                        <div key={node.id} className="text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs px-1.5 py-0.5 rounded ${
-                              node.node_type === 'required' ? 'bg-indigo-50 text-indigo-600' :
-                              node.node_type === 'optional' ? 'bg-amber-50 text-amber-600' :
-                              'bg-purple-50 text-purple-600'
-                            }`}>
-                              {node.node_type === 'required' ? '必修' : node.node_type === 'optional' ? '可选' : '进阶'}
-                            </span>
-                            <span className="font-medium">{node.title}</span>
-                            <span className="text-gray-400">~{node.estimated_hours}h</span>
-                          </div>
-                          <p className="text-gray-500 mt-0.5">{node.description}</p>
-                          <p className="text-gray-400 text-xs mt-0.5">✅ {node.check_criteria}</p>
-                          {node.resources_hint && (
-                            <p className="text-indigo-500 text-xs mt-0.5">📚 {node.resources_hint}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {phases.length === 0 && (
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          {phases.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               <p>该路径没有内容</p>
             </div>
+          ) : (
+            <TreeRenderer
+              nodes={phases}
+              progressMap={progressMap}
+              onNodeClick={handleNodeClick}
+            />
           )}
         </div>
       </main>
+
+      {/* Node drawer */}
+      <NodeDrawer
+        node={selectedNode}
+        pathId={id}
+        progressMap={progressMap}
+        onClose={() => setSelectedNode(null)}
+        onProgressChange={handleProgressChange}
+      />
     </div>
   );
 }
