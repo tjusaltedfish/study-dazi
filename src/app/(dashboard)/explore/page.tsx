@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -27,11 +27,9 @@ export default function ExplorePage() {
   const [suggestedDomains, setSuggestedDomains] = useState<string[]>([]);
 
   const [showResourceForm, setShowResourceForm] = useState(false);
-  const [resForm, setResForm] = useState({ title: '', url: '', domain: '', description: '', notes: '', fileUrl: '', fileName: '' });
-  const [uploading, setUploading] = useState(false);
+  const [resForm, setResForm] = useState({ title: '', url: '', domain: '', description: '', notes: '' });
   const [resSubmitting, setResSubmitting] = useState(false);
   const [resError, setResError] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { loadTab('posts'); loadDomains(); }, []);
 
@@ -69,25 +67,6 @@ export default function ExplorePage() {
     if (res.ok) { const d = await res.json(); router.push(`/paths/${d.id}`); }
   };
 
-  const [uploadError, setUploadError] = useState('');
-
-  const handleFileUpload = async (file: File) => {
-    setUploadError('');
-    setUploading(true);
-    try {
-      const form = new FormData(); form.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
-      if (!res.ok) {
-        const d = await res.json().catch(()=>({}));
-        throw new Error(d.error || '上传失败');
-      }
-      const d = await res.json();
-      setResForm(p => ({ ...p, fileUrl: d.url, fileName: d.name }));
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : '上传失败');
-    } finally { setUploading(false); }
-  };
-
   const handleAddResource = async () => {
     if (!resForm.title || !resForm.domain) { setResError('请填写资源名称和领域'); return; }
     setResError('');
@@ -97,8 +76,6 @@ export default function ExplorePage() {
       if (resForm.url) body.url = resForm.url;
       if (resForm.description) body.description = resForm.description;
       if (resForm.notes) body.notes = resForm.notes;
-      if (resForm.fileUrl) { body.fileUrl = resForm.fileUrl; body.fileName = resForm.fileName; }
-      console.log('[Resource] submitting body keys:', Object.keys(body), 'fileUrl length:', (body.fileUrl || '').length);
       const res = await fetch('/api/resources', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
@@ -106,11 +83,10 @@ export default function ExplorePage() {
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error || '提交失败 (' + res.status + ')');
       setShowResourceForm(false);
-      setResForm({ title: '', url: '', domain: '', description: '', notes: '', fileUrl: '', fileName: '' });
+      setResForm({ title: '', url: '', domain: '', description: '', notes: '' });
       loadTab('resources', domain);
     } catch (err) {
       setResError(err instanceof Error ? err.message : '提交失败');
-      console.error('[Resource] submit error:', err);
     } finally { setResSubmitting(false); }
   };
 
@@ -173,25 +149,17 @@ export default function ExplorePage() {
 
             {tab === 'resources' && (
               <div className="space-y-4">
-                <button onClick={() => { setShowResourceForm(!showResourceForm); setUploading(false); setUploadError(''); setResError(''); }}
+                <button onClick={() => { setShowResourceForm(!showResourceForm); setResError(''); }}
                   className="text-sm text-indigo-600 hover:text-indigo-500">+ 分享资源</button>
                 {showResourceForm && (
                   <div className="bg-white rounded-xl shadow-sm p-4 space-y-2">
                     {resError && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{resError}</p>}
-                    {uploadError && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{uploadError}</p>}
                     <input value={resForm.title} onChange={e => setResForm(p => ({ ...p, title: e.target.value }))}
                       placeholder="资源名称 *" className="w-full border rounded-md px-3 py-2 text-sm" />
-                    <div className="flex gap-2">
-                      <input value={resForm.url} onChange={e => setResForm(p => ({ ...p, url: e.target.value }))}
-                        placeholder="链接 URL（可选）" className="flex-1 border rounded-md px-3 py-2 text-sm" />
-                      <input ref={fileInputRef} type="file" onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} className="hidden" />
-                      <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                        className="px-3 py-2 border rounded-md text-sm text-gray-500 hover:text-indigo-600 disabled:opacity-50">
-                        {uploading ? '⏳ 上传中...' : resForm.fileName ? '✅ ' + resForm.fileName : '📎 上传文件'}
-                      </button>
-                    </div>
+                    <input value={resForm.url} onChange={e => setResForm(p => ({ ...p, url: e.target.value }))}
+                      placeholder="链接 URL" className="w-full border rounded-md px-3 py-2 text-sm" />
                     <input value={resForm.domain} onChange={e => setResForm(p => ({ ...p, domain: e.target.value }))}
-                      list="domain-suggestions" placeholder="领域/板块 *（可自定义输入）"
+                      list="domain-suggestions" placeholder="领域/板块 *（可自定义）"
                       className="w-full border rounded-md px-3 py-2 text-sm" />
                     <datalist id="domain-suggestions">
                       {suggestedDomains.map(d => <option key={d} value={d} />)}
@@ -209,10 +177,9 @@ export default function ExplorePage() {
                 {resources.map(r => (
                   <div key={r.id} className="bg-white rounded-xl shadow-sm p-4">
                     <div className="flex items-center gap-2">
-                      {(r.url || r.fileUrl) ? (
-                        <a href={r.fileUrl || r.url} target="_blank" rel="noopener" className="text-sm font-medium text-indigo-600 hover:underline">{r.title}</a>
+                      {r.url ? (
+                        <a href={r.url} target="_blank" rel="noopener" className="text-sm font-medium text-indigo-600 hover:underline">{r.title}</a>
                       ) : <span className="text-sm font-medium">{r.title}</span>}
-                      {r.fileName && <span className="text-xs text-gray-400">📎 {r.fileName}</span>}
                       <span className="text-xs px-2 py-0.5 rounded bg-gray-100">{r.domain}</span>
                     </div>
                     {r.description && <p className="text-xs text-gray-500 mt-1">{r.description}</p>}
