@@ -79,6 +79,8 @@ export function streamJSONGeneration(options: StreamJSONGenerationOptions): Read
             controller.close();
             return;
           } catch (parseError) {
+            console.warn(`[${options.label}] extractJSON failed. First 300 chars:`, fullText.substring(0, 300));
+            console.warn(`[${options.label}] extractJSON failed. Last 300 chars:`, fullText.substring(Math.max(0, fullText.length - 300)));
             const lengthLimited = isLengthLimited(finishReason);
             if (lengthLimited || isTruncatedJSON(fullText)) {
               throw new Error('AI 响应达到 max_tokens 上限');
