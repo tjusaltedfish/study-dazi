@@ -49,13 +49,23 @@ export function streamJSONGeneration(options: StreamJSONGenerationOptions): Read
         let chunkCount = 0;
 
         try {
-          const aiResult = await chatCompletionStreamWithMeta(
-            options.provider,
-            options.apiKey,
-            options.systemPrompt,
-            options.userMessage,
-            { maxTokens, baseUrl: options.baseUrl },
-          );
+          let aiResult;
+          try {
+            aiResult = await chatCompletionStreamWithMeta(
+              options.provider,
+              options.apiKey,
+              options.systemPrompt,
+              options.userMessage,
+              { maxTokens, baseUrl: options.baseUrl },
+            );
+          } catch (connErr) {
+            const msg = connErr instanceof Error ? connErr.message : '连接 AI 服务失败';
+            console.error(`[${options.label}] Connection failed:`, msg);
+            sendSse(controller, 'error', { message: `AI 服务连接失败：${msg}` });
+            controller.close();
+            return;
+          }
+
           const reader = aiResult.stream.getReader();
 
           try {
@@ -133,13 +143,23 @@ export function streamTextGeneration(options: StreamTextGenerationOptions): Read
         let chunkCount = 0;
 
         try {
-          const aiResult = await chatCompletionStreamWithMeta(
-            options.provider,
-            options.apiKey,
-            options.systemPrompt,
-            options.userMessage,
-            { maxTokens, baseUrl: options.baseUrl },
-          );
+          let aiResult;
+          try {
+            aiResult = await chatCompletionStreamWithMeta(
+              options.provider,
+              options.apiKey,
+              options.systemPrompt,
+              options.userMessage,
+              { maxTokens, baseUrl: options.baseUrl },
+            );
+          } catch (connErr) {
+            const msg = connErr instanceof Error ? connErr.message : '连接 AI 服务失败';
+            console.error(`[${options.label}] Connection failed:`, msg);
+            sendSse(controller, 'error', { message: `AI 服务连接失败：${msg}` });
+            controller.close();
+            return;
+          }
+
           const reader = aiResult.stream.getReader();
 
           try {
@@ -187,7 +207,8 @@ export function streamTextGeneration(options: StreamTextGenerationOptions): Read
 export function sseHeaders(): HeadersInit {
   return {
     'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
+    'Cache-Control': 'no-cache, no-transform',
+    'X-Accel-Buffering': 'no',
     Connection: 'keep-alive',
   };
 }
