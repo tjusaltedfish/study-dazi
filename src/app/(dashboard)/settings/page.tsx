@@ -94,6 +94,11 @@ export default function SettingsPage() {
         },
         body: JSON.stringify(body),
       });
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        setTestResult({ ok: false, msg: `服务器返回了非 JSON 响应 (${res.status})` });
+        return;
+      }
       const data = await res.json();
       if (data.ok) {
         setTestResult({ ok: true, msg: `连接成功: "${data.reply}" (${data.url})` });
