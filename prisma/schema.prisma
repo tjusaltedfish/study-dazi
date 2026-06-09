@@ -40,6 +40,12 @@ model User {
   receivedMessages          Message[]     @relation("msgTo")
   notifications             Notification[]
   pushSubscriptions         PushSubscription[]
+  userAnswers               UserAnswer[]
+  testSessions              TestSession[]
+  projectSubmissions        ProjectSubmission[]
+  codingAttempts            UserCodingAttempt[]
+  interviewSessions         InterviewSession[]
+  bookmarks                 UserBookmark[]
 
   @@map("users")
 }
@@ -62,6 +68,7 @@ model LearningPath {
   forkedPath   LearningPath?      @relation("ForkSource", fields: [forkedFrom], references: [id], onDelete: SetNull)
   forks        LearningPath[]     @relation("ForkSource")
   nodeProgress UserNodeProgress[]
+  testSessions TestSession[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([isTemplate, domain])
@@ -322,6 +329,7 @@ model ResourceIndex {
   createdAt   DateTime @default(now()) @map("created_at")
 
   nodeLinks NodeResource[]
+  chunks    ResourceChunk[]
 
   @@index([domain, difficulty])
   @@index([platform, domain])
