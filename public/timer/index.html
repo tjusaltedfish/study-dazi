@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>日程之间 · Timer</title>
-<meta name="description" content="日程之间：一个人的时间表。此刻为主、彩墨一周、入定专注，AI 助手一句话替你排好改好，到点在微信里问你做完了吗。Android 与 Windows 同步。">
+<title>瞬时</title>
+<meta name="description" content="瞬时：一个人的时间表。此刻为主、一色一事的周视图、入定专注，AI 助手一句话替你排好改好，到点在微信里问你做完了吗。Android 与 Windows 同步。">
 <meta name="theme-color" content="#ffffff">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2323211F'/%3E%3Ctext x='32' y='43' font-size='30' text-anchor='middle' fill='%23fff' font-family='serif'%3E日%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2323211F'/%3E%3Ctext x='32' y='43' font-size='30' text-anchor='middle' fill='%23fff' font-family='serif'%3E瞬%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css">
 <style>
 :root {
@@ -21,8 +21,8 @@
   --wash-strong: rgba(35, 33, 31, .09);
   --bloom: rgba(35, 33, 31, .16);
   --halo: 0 1px 2px rgba(35, 33, 31, .04), 0 18px 48px -12px rgba(35, 33, 31, .16);
-  --qingdai: #2f535b; --zheshi: #6c4435; --ouzi: #544866; --songlv: #3e5342;
-  --yanzhi: #6f3d4a; --qiuxiang: #5e4b23; --huaqing: #394e70; --chahe: #5c4a3e;
+  --zhusha: #c0473a; --shiqing: #2b6cb0; --shilv: #2e8564; --tenghuang: #a87a12;
+  --yanzhi: #ad4477; --dianlan: #4c55b0; --zheshi: #9e5a33; --daiqing: #357484; --tint: 14%;
   --kai: "LXGW WenKai", "Kaiti SC", "STKaiti", "KaiTi", serif;
   --sans: -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
 }
@@ -32,8 +32,8 @@
     --jiao: #ece9e5; --nong: #d6d3cf; --zhong: #aaa6a1; --dan: #77736e; --qing: #2a2826;
     --wash: rgba(236, 233, 229, .06); --wash-strong: rgba(236, 233, 229, .1); --bloom: rgba(236, 233, 229, .08);
     --halo: 0 1px 2px rgba(0, 0, 0, .3), 0 18px 48px -12px rgba(0, 0, 0, .6);
-    --qingdai: #a8cfd2; --zheshi: #e4b69f; --ouzi: #cabae0; --songlv: #b7cdb0;
-    --yanzhi: #e5b0bd; --qiuxiang: #dcc791; --huaqing: #b2c8eb; --chahe: #d5c3b2;
+    --zhusha: #f0897d; --shiqing: #7db0f0; --shilv: #6fcfa6; --tenghuang: #ebc15e;
+    --yanzhi: #e88bb6; --dianlan: #9ea6f4; --zheshi: #e3a27c; --daiqing: #86c4d2; --tint: 22%;
   }
 }
 :root[data-theme="dark"] {
@@ -41,8 +41,8 @@
   --jiao: #ece9e5; --nong: #d6d3cf; --zhong: #aaa6a1; --dan: #77736e; --qing: #2a2826;
   --wash: rgba(236, 233, 229, .06); --wash-strong: rgba(236, 233, 229, .1); --bloom: rgba(236, 233, 229, .08);
   --halo: 0 1px 2px rgba(0, 0, 0, .3), 0 18px 48px -12px rgba(0, 0, 0, .6);
-  --qingdai: #a8cfd2; --zheshi: #e4b69f; --ouzi: #cabae0; --songlv: #b7cdb0;
-  --yanzhi: #e5b0bd; --qiuxiang: #dcc791; --huaqing: #b2c8eb; --chahe: #d5c3b2;
+  --zhusha: #f0897d; --shiqing: #7db0f0; --shilv: #6fcfa6; --tenghuang: #ebc15e;
+  --yanzhi: #e88bb6; --dianlan: #9ea6f4; --zheshi: #e3a27c; --daiqing: #86c4d2; --tint: 22%;
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
@@ -136,17 +136,13 @@ section { padding: 88px 0; }
 .col.sel .head b { color: var(--paper); }
 .lane { position: absolute; left: 0; right: 0; top: 40px; bottom: 0; }
 .stamp { position: absolute; left: 2px; right: 2px; display: grid; place-items: center; text-align: center;
-  font-family: var(--kai); font-size: 10px; line-height: 1.2; padding: 0 1px;
-  border-radius: 9px 10px 8px 11px / 10px 8px 11px 9px; overflow: hidden;
-  color: var(--c); background:
-    radial-gradient(90% 90% at 20% 20%, color-mix(in srgb, var(--c) 13%, transparent), transparent 70%),
-    radial-gradient(90% 90% at 84% 74%, color-mix(in srgb, var(--c) 12%, transparent), transparent 70%),
-    color-mix(in srgb, var(--c) 15%, transparent);
-  box-shadow: inset 0 0 0 .6px color-mix(in srgb, var(--c) 34%, transparent); }
+  font-size: 9.5px; line-height: 1.25; padding: 0 1px 0 4px; border-radius: 5px; overflow: hidden; color: var(--jiao);
+  background: color-mix(in srgb, var(--c) var(--tint), transparent);
+  box-shadow: inset 3px 0 0 var(--c); }
 .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 24px; }
 .legend span { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--zhong); }
 .legend span::before { content: ""; width: 14px; height: 14px; border-radius: 5px;
-  background: color-mix(in srgb, var(--c) 22%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 40%, transparent); }
+  background: color-mix(in srgb, var(--c) var(--tint), transparent); box-shadow: inset 3px 0 0 var(--c); }
 
 /* Focus ring */
 .focus-panel { flex: 1; display: flex; flex-direction: column; }
@@ -257,7 +253,7 @@ footer .kai { font-size: 26px; display: block; margin-bottom: 10px; }
 
 <header>
   <div class="wrap">
-    <a class="brand" href="#top"><span class="seal">日程</span><b>日程之间</b><small>Timer</small></a>
+    <a class="brand" href="#top"><span class="seal">瞬</span><b>瞬时</b></a>
     <nav aria-label="页面导航">
       <a href="#week">一周</a><a href="#focus">专注</a><a href="#assistant">助手</a><a href="#wechat">公众号</a><a href="#more">更多</a>
     </nav>
@@ -269,13 +265,13 @@ footer .kai { font-size: 26px; display: block; margin-bottom: 10px; }
     <div>
       <p class="eyebrow">一个人的时间表</p>
       <h1>把一句话，<br>变成一段有结果的时间。</h1>
-      <p class="lead">日程之间以「此刻」为中心安排你的一天。说一句「今天十二点前把项目做完」，助手就替你排好；到点了，它在微信里问你一句：做完了吗？</p>
+      <p class="lead">瞬时以「此刻」为中心安排你的一天。说一句「今天十二点前把项目做完」，助手就替你排好；到点了，它在微信里问你一句：做完了吗？</p>
       <div class="chips"><span class="chip">Android</span><span class="chip">Windows</span><span class="chip">微信公众号</span><span class="chip">数据留在自己的电脑</span></div>
       <a class="cta" href="#week">看看它怎么用 <span aria-hidden="true">↓</span></a>
     </div>
     <div class="phone" role="img" aria-label="手机首页示意：大号时钟、七日条和当前待办卡片">
       <div class="screen">
-        <div class="app-title">日程之间 <i>· · ·</i></div>
+        <div class="app-title">瞬时 <i>· · ·</i></div>
         <div class="clock" id="clock">09:41</div>
         <div class="clock-sub" id="clock-sub">此刻</div>
         <div class="days" id="days"></div>
@@ -298,12 +294,12 @@ footer .kai { font-size: 26px; display: block; margin-bottom: 10px; }
       <div class="copy reveal">
         <p class="kicker">一 周</p>
         <h2 class="section-title">整周一眼看完，<br>每件事一种颜色。</h2>
-        <p>手机竖屏放得下七天。每件待办落一种矿物色：青黛、赭石、藕紫、松绿……像在宣纸上点了几笔淡彩，块上留着简称，长按看全名，点日期看当天明细。</p>
+        <p>手机竖屏放得下七天。一色一事：朱砂、石青、石绿、藤黄……每件待办一种颜色，只落在左边一道细线和一层很淡的底色上，字仍是墨色，一眼分得清又不花。长按看全名，点日期看当天明细。</p>
         <p>空着的时段直接点一下就能安排；已经过去的时间淡下去，不会被误排。</p>
         <div class="legend">
-          <span style="--c: var(--qingdai)">实验分析</span><span style="--c: var(--zheshi)">算法刷题</span>
-          <span style="--c: var(--ouzi)">Fab 曝光</span><span style="--c: var(--songlv)">论文阅读</span>
-          <span style="--c: var(--yanzhi)">时间表开发</span><span style="--c: var(--qiuxiang)">秋招简历</span>
+          <span style="--c: var(--zhusha)">实验分析</span><span style="--c: var(--shiqing)">算法刷题</span>
+          <span style="--c: var(--shilv)">Fab 曝光</span><span style="--c: var(--tenghuang)">论文阅读</span>
+          <span style="--c: var(--yanzhi)">时间表开发</span><span style="--c: var(--dianlan)">秋招简历</span>
         </div>
       </div>
       <div class="phone reveal" role="img" aria-label="一周总览示意：七列彩色时间块">
@@ -330,7 +326,7 @@ footer .kai { font-size: 26px; display: block; margin-bottom: 10px; }
       </div>
       <div class="phone reveal" role="img" aria-label="专注示意：墨环倒计时">
         <div class="screen">
-          <div class="app-title">日程之间 <i>· · ·</i></div>
+          <div class="app-title">瞬时 <i>· · ·</i></div>
           <div class="card focus-panel" style="margin-top:18px">
             <div class="focus-head"><span class="seal">今</span>正在专注</div>
             <h4>时间表开发</h4>
@@ -357,7 +353,7 @@ footer .kai { font-size: 26px; display: block; margin-bottom: 10px; }
       <div class="copy reveal">
         <p class="kicker">助 手</p>
         <h2 class="section-title">说一句，它就办好；<br>不对，一键撤销。</h2>
-        <p>助手叫 Timer，像跟了你很久的私人助理：干脆、平静，不寒暄、不说教。它看得见你这一周的安排和进度，能新建、改期、撤下、续时、记录结果，改完只用一句话告诉你。</p>
+        <p>助手就叫「瞬时」，像跟了你很久的私人助理：干脆、平静，不寒暄、不说教。它看得见你这一周的安排和进度，能新建、改期、撤下、续时、记录结果，改完只用一句话告诉你。</p>
         <p>你说过的习惯，比如「上午脑子最清楚」，它会记成长期偏好，以后排实验优先放上午。记了什么都看得到，随时删。</p>
         <ul class="ticks">
           <li>接入任意 OpenAI 兼容服务，比如 DeepSeek；Key 只存在你的电脑上</li>
@@ -384,7 +380,7 @@ footer .kai { font-size: 26px; display: block; margin-bottom: 10px; }
       <div class="copy reveal">
         <p class="kicker">公 众 号</p>
         <h2 class="section-title">不用一直开着 App，<br>它会来问你。</h2>
-        <p>绑定一个微信公众号测试号，Timer 就会主动来找你：新添了待办、开始专注、到了开始时间、一段时间结束了，都会推一条简短的消息。</p>
+        <p>绑定一个微信公众号测试号，瞬时就会主动来找你：新添了待办、开始专注、到了开始时间、一段时间结束了，都会推一条简短的消息。</p>
         <p>直接在微信里回话就行：「完成了」「再给我 15 分钟」「剩下的推到晚上八点」，或者把今天的总结发过去，它会存好原文，交给复盘。</p>
       </div>
       <div class="push reveal" aria-label="公众号对话示意">
@@ -444,7 +440,7 @@ footer .kai { font-size: 26px; display: block; margin-bottom: 10px; }
 
 <footer>
   <span class="kai">一件一件来。</span>
-  日程之间 · Timer · 个人自用的时间管理 · 2026
+  瞬时 · 个人自用的时间管理 · 2026
 </footer>
 
 <script>
@@ -473,12 +469,12 @@ footer .kai { font-size: 26px; display: block; margin-bottom: 10px; }
 
   // The week map: [day, start hour, hours, title, pigment].
   const plan = [
-    [0, 9, 1.5, '实验分析', 'qingdai'], [0, 14, 1, '算法', 'zheshi'], [0, 19, 2, '论文阅读', 'songlv'],
-    [1, 9, 1, '时间表', 'yanzhi'], [1, 10.5, .75, '算法', 'zheshi'], [1, 12, 1, '午饭', 'chahe'], [1, 13.5, 2, 'Fab 曝光', 'ouzi'], [1, 20, 1, '秋招', 'qiuxiang'],
-    [2, 8.5, 2, '实验分析', 'qingdai'], [2, 15, 1.5, '时间表', 'yanzhi'],
-    [3, 10, 1, '论文', 'songlv'], [3, 13, 3, 'Fab 曝光', 'ouzi'], [3, 21, .75, '算法', 'zheshi'],
-    [4, 9, 2, '时间表开发', 'yanzhi'], [4, 16, 1, '秋招', 'qiuxiang'],
-    [5, 10, 2.5, '论文阅读', 'songlv'], [6, 15, 1.5, '实验', 'qingdai']
+    [0, 9, 1.5, '实验分析', 'zhusha'], [0, 14, 1, '算法', 'shiqing'], [0, 19, 2, '论文阅读', 'tenghuang'],
+    [1, 9, 1, '时间表', 'yanzhi'], [1, 10.5, .75, '算法', 'shiqing'], [1, 12, 1, '午饭', 'zhong'], [1, 13.5, 2, 'Fab 曝光', 'shilv'], [1, 20, 1, '秋招', 'dianlan'],
+    [2, 8.5, 2, '实验分析', 'zhusha'], [2, 15, 1.5, '时间表', 'yanzhi'],
+    [3, 10, 1, '论文', 'tenghuang'], [3, 13, 3, 'Fab 曝光', 'shilv'], [3, 21, .75, '算法', 'shiqing'],
+    [4, 9, 2, '时间表开发', 'yanzhi'], [4, 16, 1, '秋招', 'dianlan'],
+    [5, 10, 2.5, '论文阅读', 'tenghuang'], [6, 15, 1.5, '实验', 'zhusha']
   ];
   const first = 8, last = 23, span = last - first;
   const map = document.getElementById('week-map');
@@ -500,7 +496,7 @@ footer .kai { font-size: 26px; display: block; margin-bottom: 10px; }
       el.style.setProperty('--c', `var(--${ink})`);
       el.style.top = ((start - first) / span * 100) + '%';
       el.style.height = (hours / span * 100) + '%';
-      el.textContent = hours >= 1.4 ? title : title.slice(0, 3);
+      el.textContent = hours >= 1.4 ? title : title.slice(0, 4);
       lane.appendChild(el);
     });
     map.appendChild(col);
